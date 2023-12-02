@@ -9,51 +9,10 @@ from sklearn.preprocessing import Normalizer
 from sklearn.compose import ColumnTransformer
 
 from keras.models import Sequential
-from keras.layers import Dense
+from keras.layers import Dense, Dropout, Activation, Flatten, InputLayer
+from keras.optimizers import Adam
 
 import matplotlib.pyplot as plt
-
-def preprocessData(d, index, label):
-    """
-    Preprocess the data
-
-    :param d: the raw time domain recording
-    :param index: the locations in the recording of the start of each spike
-    :param label: the class of each spike (1, 2, 3, 4, or 5), i.e. the type of neuron that fired it
-
-    :return: dataframe
-    """
-
-    # sampling frequency
-    sampling_freq = 25000
-
-    # Create a dataframe which contains the time in seconds and the amplitude of
-    # the signal
-    df = pd.DataFrame()
-    df['Time'] = np.arange(0, len(d)/sampling_freq, 1/sampling_freq)
-    df['Amplitude'] = d
-
-    # add a label column to the dataframe
-    df['Label'] = 0
-    df.loc[index, 'Label'] = label
-
-    # convert the label column to categorical
-    df['Label'] = pd.Categorical(df['Label'])
-
-    # use one-hot encoding to create dummy variables for the label column
-    df_label = pd.get_dummies(df['Label'], prefix='Label')
-
-    # concatenate the dummy variables to the dataframe
-    df = pd.concat([df, df_label], axis=1)
-
-    # drop the original label column
-    df = df.drop('Label', axis=1)
-
-    # normalize the amplitude column so that the values are between -1 and 1 by
-    # dividing by the maximum value
-    df['Amplitude'] = df['Amplitude'] / df['Amplitude'].max()
-
-    return df
 
 def lowPassFilter(df, cutoff_freq, sampling_freq, order=5):
     """
@@ -67,15 +26,41 @@ def lowPassFilter(df, cutoff_freq, sampling_freq, order=5):
     :return: dataframe
     """
 
+    # create a copy of the df
+    df_filtered = df.copy()
+
     b, a = butter(order, cutoff_freq, fs=sampling_freq, btype='low', analog=False)
 
     # apply the filter to the amplitude column
-    df['Amplitude'] = lfilter(b, a, df['Amplitude'])
+    df_filtered['Amplitude'] = lfilter(b, a, df_filtered['Amplitude'])
 
     # Accommodate for the phase shift caused by the filter
-    df['Amplitude'] = np.roll(df['Amplitude'], -2* order)
+    df_filtered['Amplitude'] = np.roll(df_filtered['Amplitude'], -2* order)
 
-    return df
+    return df_filtered
+
+def splitIntoWindows(df, window_size):
+    """
+    Split the data into windows. The last windows are padded with zeros if
+    necessary.
+    
+    :param df: dataframe
+    :param window_size: window size
+    
+    :return: dataframe
+    """
+
+    # create a dataframe with the amplitude column duplicated window_size times
+    # and include a column for the time and label values.
+    df_windows = pd.DataFrame()
+    for i in range(window_size):
+        df_windows['Amplitude' + str(i)] = df['Amplitude'].shift(-i, fill_value=0)
+    
+    df_windows['Time'] = df['Time']
+    df_windows['Label'] = df['Label']
+
+    return df_windows
+
 
 def splitData(df, train_size):
     """
@@ -120,6 +105,41 @@ def generateSpectogram(df, frame_length, frame_step):
     spectogram = tf.signal.stft(amplitude, frame_length=frame_length, frame_step=frame_step)
     spectogram = tf.abs(spectogram)
     spectogram = tf.expand_dims(spectogram, axis=2)
+
+    # plot the spectrogram
+    plt.figure(figsize=(10, 8))
+    plt.imshow(tf.transpose(spectogram)[0])
+    plt.xlabel('Time')
+    plt.ylabel('Frequency')
+    plt.colorbar()
+    plt.show()
     
     return spectogram
+
+def train(train_df, window_size, step_size, batch_size, epochs, num_neurons):
+    """
+    Train the model
+    
+    :param train_df: training dataframe
+    :param window_size: window size
+    :param step_size: step size
+    :param batch_size: batch size
+    :param epochs: epochs
+    
+    :return: model
+    """
+
+    # get the amplitude column
+    amplitude = train_df['Amplitude'].values
+
+    # get the time values
+    times = train_df['Time'].values
+
+    # Create a sequential neural network model with 1 input layer, 2 hidden
+    # layers and 1 output layer. window_size is the number of input neurons.
+    # num_neurons is the number of neurons in the hidden layers.
+    model = Sequential()
+    model.add(InputLayer(input_shape=(window_size,)))
+
+
 

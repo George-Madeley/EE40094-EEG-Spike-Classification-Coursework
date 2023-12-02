@@ -4,13 +4,8 @@ import tensorflow as tf
 
 from scipy.signal import butter, lfilter
 
-from sklearn.preprocessing import StandardScaler
-from sklearn.preprocessing import Normalizer
-from sklearn.compose import ColumnTransformer
-
 from keras.models import Sequential
-from keras.layers import Dense, Dropout, Activation, Flatten, InputLayer
-from keras.optimizers import Adam
+from keras.layers import Dense, InputLayer
 
 import matplotlib.pyplot as plt
 
@@ -35,7 +30,7 @@ def lowPassFilter(df, cutoff_freq, sampling_freq, order=5):
     df_filtered['Amplitude'] = lfilter(b, a, df_filtered['Amplitude'])
 
     # Accommodate for the phase shift caused by the filter
-    df_filtered['Amplitude'] = np.roll(df_filtered['Amplitude'], -2* order)
+    df_filtered['Amplitude'] = np.roll(df_filtered['Amplitude'], -2 * order)
 
     return df_filtered
 
@@ -56,8 +51,13 @@ def splitIntoWindows(df, window_size):
     for i in range(window_size):
         df_windows['Amplitude' + str(i)] = df['Amplitude'].shift(-i, fill_value=0)
     
-    df_windows['Time'] = df['Time']
-    df_windows['Label'] = df['Label']
+    # add the time and label columns to the dataframe
+    column_names = []
+    for column_name in df.columns:
+        if column_name != 'Amplitude':
+            column_names.append(column_name)
+    # concat the df_windows and df[column_names] dataframes
+    df_windows = pd.concat([df_windows, df[column_names]], axis=1)
 
     return df_windows
 
@@ -116,30 +116,69 @@ def generateSpectogram(df, frame_length, frame_step):
     
     return spectogram
 
-def train(train_df, window_size, step_size, batch_size, epochs, num_neurons):
+def train(train_df, window_size, batch_size, epochs, num_neurons):
     """
     Train the model
     
     :param train_df: training dataframe
     :param window_size: window size
-    :param step_size: step size
     :param batch_size: batch size
     :param epochs: epochs
     
     :return: model
     """
 
-    # get the amplitude column
-    amplitude = train_df['Amplitude'].values
+    # Get the the columns that contain the amplitude values
+    amplitudes = train_df.iloc[:, :window_size].values
 
-    # get the time values
-    times = train_df['Time'].values
+    # Get the labels
+    labels = train_df['Label'].unique()
+    num_unique_labels = len(labels)
+
+    # Get the columns that start with 'Label' and suffix with a number
+    label_names = train_df.filter(regex='Label\d+').columns
+    labels = train_df[label_names].values
 
     # Create a sequential neural network model with 1 input layer, 2 hidden
     # layers and 1 output layer. window_size is the number of input neurons.
     # num_neurons is the number of neurons in the hidden layers.
     model = Sequential()
     model.add(InputLayer(input_shape=(window_size,)))
+    model.add(Dense(num_neurons, activation='relu'))
+    model.add(Dense(num_neurons, activation='relu'))
+    model.add(Dense(num_unique_labels, activation='softmax'))
+
+    # Compile the model
+    model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+
+    # Train the model
+    model.fit(amplitudes, labels, batch_size=batch_size, epochs=epochs, verbose=1)
+
+    return model
+
+def test(model, test_df, window_size):
+    """
+    Test the model
+    
+    :param model: model
+    :param test_df: test dataframe
+    :param window_size: window size
+
+    :return: None
+    """
+
+    # Get the the columns that contain the amplitude values
+    amplitudes = test_df.iloc[:, :window_size].values
+
+    # Get the columns that start with 'Label' and suffix with a number
+    label_names = test_df.filter(regex='Label\d+').columns
+    labels = test_df[label_names].values
+
+    # Evaluate the model
+    loss, accuracy = model.evaluate(amplitudes, labels, verbose=1)
+
+    print('Loss:', loss)
+    print('Accuracy:', accuracy)
 
 
 

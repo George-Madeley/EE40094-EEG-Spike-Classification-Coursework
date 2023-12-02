@@ -3,7 +3,8 @@ import numpy as np
 import sys
 import pandas as pd
 import matplotlib.pyplot as plt
-from scipy import signal
+
+import tensorflow
 
 import ai
 
@@ -13,25 +14,36 @@ def main():
     Main function
     """
 
+    batch_size = 100
+    window_size = 100
+    epochs = 10
+    cutoff_freq = 1000
+    sampling_freq = 25000
     
     d, index, label = loadData()
 
     # create a dataframe from the data
-    df = ai.createDataFrame(d, index, label)
+    df = createDataFrame(d, index, label)
 
     # normalize the data
     df_norm = normalizeData(df)
 
     # filter the data
-    df_filtered = ai.lowPassFilter(df_norm, 1000, 25000)
+    df_filtered = ai.lowPassFilter(df_norm, cutoff_freq, sampling_freq)
 
     # Split the data into windows
-    df_windows = ai.splitIntoWindows(df_filtered, 100, 10)
+    df_windows = ai.splitIntoWindows(df_filtered, window_size)
 
     # # Split the data into training and testing sets
     df_train, df_test = ai.splitData(df_windows, 0.8)
 
-    plot_data(index, label, df_norm, df_filtered)
+    # Train the model
+    model = ai.train(df_train, window_size, batch_size, epochs, len(df_train['Label'].unique()))
+
+    # Test the model
+    ai.test(model, df_test, window_size)
+
+    # plot_data(index, label, df_norm, df_filtered)
 
 def loadData():
     """
@@ -100,18 +112,14 @@ def createDataFrame(d, index, label):
     df['Label'] = 0
     df.loc[index, 'Label'] = label
 
-    # convert the label column to categorical
-    df['Label'] = pd.Categorical(df['Label'])
+    # convert the label column to a one-hot encoded vector
+    labels =  tensorflow.keras.utils.to_categorical(df['Label'])
 
-    # use one-hot encoding to create dummy variables for the label column
-    df_label = pd.get_dummies(df['Label'], prefix='Label')
+    # add the one-hot encoded vector to the dataframe
+    for i in range(len(labels[0])):
+        df['Label' + str(i)] = labels[:, i]
 
-    # concatenate the dummy variables to the dataframe
-    df = pd.concat([df, df_label], axis=1)
-
-    # drop the original label column
-    df = df.drop('Label', axis=1)
-
+    # return the dataframe
     return df
 
 def plot_data(index, label, df_norm, df_filtered, num_samples_plot=5000):

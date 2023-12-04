@@ -11,12 +11,12 @@ def main():
     Main function
     """
 
-    heading = ['SNR', 'filter_type', 'Cutoff Frequency', 'Layer Type', 'Batch Size', 'Window Size', 'Epochs', 'Epoch No.', 'Training', 'Accuracy', 'Loss']
+    heading = ['SNR', 'filter_type', 'Cutoff Frequency', 'Layer Type', 'Batch Size', 'Window Size', 'Epochs', 'Epoch No.', 'Training', 'Loss', 'Accuracy']
     file_path = getResultsFileName('results.csv', heading, 'results')
 
     batch_size = 100
-    window_size = 100
-    epochs = 1
+    window_size = 50
+    epochs = 10
     cutoff_freq = 1000
     sampling_freq = 25000
     SNR = 80
@@ -66,11 +66,11 @@ def test(d, index, label, batch_size=100, window_size=100, epochs=10, cutoff_fre
     # Split the data into training and testing sets
     df_train, df_test = pp.getTrainAndTestData(df, training_partition)
 
-    numOutputs = len(df_train['Label'].unique())
+    numOutputs = len(df['Label'].unique())
     # Create the model
     model = ml.NeuralNetwork(window_size, numOutputs)
     # Train the model
-    losses, accuracies = model.train(df_train, batch_size, epochs)
+    losses, accuracies = model.train(df, batch_size, epochs)
 
     # If the training partition is less than 1, then the data was split into
     # training and testing sets. Therefore, we can test the model.

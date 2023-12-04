@@ -89,7 +89,10 @@ def preprocessTrainingData(d, index, label, cutoff_freq=1000, sampling_freq=2500
     # Split the data into windows
     df_windows = createWindows(df_filtered, window_size)
 
-    return df_windows
+    # Unbias the data
+    df_unbias = unbiasData(df_windows)
+
+    return df_unbias
 
 def preprocessPredictionData(d, cutoff_freq=1000, sampling_freq=25000, window_size=100):
     """
@@ -227,6 +230,31 @@ def createWindows(df, window_size):
     df_windows = pd.concat([df_windows, df[column_names]], axis=1)
 
     return df_windows
+
+def unbiasData(df):
+    """
+    Unbias the data by keeping the number of windows for each label the same.
+    
+    :param df: dataframe
+    
+    :return: dataframe
+    """
+
+    # Get the columns that start with 'Label' and suffix with a number
+    label_names = df.filter(regex='Label\d+').columns
+    # for each label column, sum the values in the column
+    label_sums = df[label_names].sum()
+    # get the minimum sum
+    min_sum = label_sums.min()
+    # Randomly select min_sum rows from each label
+    df = df.groupby('Label', group_keys=False).apply(lambda x: x.sample(int(min_sum)))
+    
+    # reset the index
+    df = df.reset_index(drop=True)
+    # shuffle the dataframe
+    df = df.sample(frac=1).reset_index(drop=True)
+
+    return df
 
 def getTrainAndTestData(df, train_size):
     """

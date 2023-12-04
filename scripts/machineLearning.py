@@ -1,6 +1,8 @@
 from keras.models import Sequential
 from keras.layers import Dense, InputLayer
 
+import numpy as np
+
 from IArtificialIntelligence import IArtificialIntelligence
 
 class NeuralNetwork(IArtificialIntelligence):
@@ -107,3 +109,31 @@ class NeuralNetwork(IArtificialIntelligence):
         print('Accuracy:', accuracy)
 
         return loss, accuracy
+    
+    def predict(self, df):
+        """
+        Predict the class of each window
+
+        :param df: dataframe
+
+        :return: predictions, predictions_indicies
+        """
+
+        # Get the the columns that start with 'Amplitude' and suffix with a number
+        amplitude_names = df.filter(regex='Amplitude\d+').columns
+        amplitudes = df[amplitude_names].values
+
+        # Predict the class of each window
+        predictions = self.model.predict(amplitudes)
+
+        # Find the class with the highest probability
+        predictions = predictions.argmax(axis=1)
+
+        # Get the indicies where the predictions are not 0
+        predictions_indicies = np.where(predictions != 0)[0]
+
+        # Get the predictions that are not 0
+        predictions = predictions[predictions_indicies]
+
+        return predictions, predictions_indicies
+    

@@ -16,7 +16,7 @@ def main():
 
     batch_size = 100
     window_size = 100
-    epochs = 10
+    epochs = 1
     cutoff_freq = 1000
     sampling_freq = 25000
     SNR = 80
@@ -24,9 +24,9 @@ def main():
     layer_type = 'Dense'
 
     
-    d, index, label = pp.loadData()
+    d, index, label = pp.loadTrainingData()
 
-    losses, accuracies = test(d, index, label, batch_size, window_size, epochs, cutoff_freq, sampling_freq)
+    losses, accuracies = test(d, index, label, batch_size, window_size, epochs, cutoff_freq, sampling_freq, prediction=True)
 
     for i in range(epochs):
         result = [SNR, filter_type, cutoff_freq, layer_type, batch_size, window_size, epochs, i, 'Training', losses[i], accuracies[i]]
@@ -35,7 +35,7 @@ def main():
     writeResults(file_path, heading, result)
     
 
-def test(d, index, label, batch_size=100, window_size=100, epochs=10, cutoff_freq=1000, sampling_freq=25000):
+def test(d, index, label, batch_size=100, window_size=100, epochs=10, cutoff_freq=1000, sampling_freq=25000, prediction=False):
     """
     Test the model
 
@@ -47,21 +47,24 @@ def test(d, index, label, batch_size=100, window_size=100, epochs=10, cutoff_fre
     :param d: data
     :param index: index
     :param label: label
+    :param prediction: prediction
 
+    :return:
+        loss - a list of the loss values for each epoch. Loss is the error
+               of the model.
+        accuracy - a list of the accuracy values for each epoch. Accuracy
+                   is the percentage of correct predictions.
     """
-    df = pp.createDataFrame(d, index, label)
 
-    # normalize the data
-    df_norm = pp.normalizeAmplitudes(df)
+    # Preprocess the data
+    df = pp.preprocessTrainingData(d, index, label, cutoff_freq, sampling_freq, window_size)
 
-    # filter the data
-    df_filtered = pp.lowPassFilter(df_norm, cutoff_freq, sampling_freq)
-
-    # Split the data into windows
-    df_windows = pp.createWindows(df_filtered, window_size)
+    # the amout of data to use for training the model. The rest of the data will
+    # be used for testing the model.
+    training_partition = 1
 
     # Split the data into training and testing sets
-    df_train, df_test = pp.getTrainAndTestData(df_windows, 0.8)
+    df_train, df_test = pp.getTrainAndTestData(df, training_partition)
 
     numOutputs = len(df_train['Label'].unique())
     # Create the model
@@ -69,11 +72,34 @@ def test(d, index, label, batch_size=100, window_size=100, epochs=10, cutoff_fre
     # Train the model
     losses, accuracies = model.train(df_train, batch_size, epochs)
 
-    # Test the model
-    loss, accuracy = model.test(df_test)
+    # If the training partition is less than 1, then the data was split into
+    # training and testing sets. Therefore, we can test the model.
+    if training_partition < 1:
+        # Test the model
+        loss, accuracy = model.test(df_test)
 
-    losses.append(loss)
-    accuracies.append(accuracy)
+        losses.append(loss)
+        accuracies.append(accuracy)
+
+    # If prediction is True, then we want to predict the labels of the data in
+    # D2.mat, D3.mat, D4.mat, D5.mat, and D6.mat. The predictions will be saved
+    # in the results directory.
+    if prediction:
+        for i in range(2, 7):
+            print(f'Predicting D{i}...')
+            # Load the data
+            filepath = os.path.join('data', f'D{i}.mat')
+            d = pp.loadPredictionData(filepath)
+
+            # Preprocess the data
+            df_prediction = pp.preprocessPredictionData(d, cutoff_freq, sampling_freq, window_size)
+            
+            # Make the predictions
+            predictions, prediction_indicies = model.predict(df_prediction)
+
+            # Save the predictions
+            filepath = os.path.join('results', f'D{i}.mat')
+            pp.savePredictions(filepath, predictions, prediction_indicies)
 
     return losses, accuracies
 

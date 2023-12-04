@@ -1,26 +1,20 @@
 import pandas as pd
 import numpy as np
 import scipy.io as sio
-import sys
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from scipy.signal import butter, lfilter
 
-def loadData():
+def loadTrainingData():
     """
-    Load the data from the .mat file specified by the command line argument.
+    Load the data from the D1.mat file.
     
     :return: d, index, label
     """
 
-    # Check if there is a command line argument
-    if len(sys.argv) != 2:
-        # If there is no command line argument, print the usage message and exit
-        print("Usage: python main.py <path_to_data>")
-        sys.exit()
 
     # Get the path to the data
-    dataset_path = sys.argv[1]
+    dataset_path = "./data/D1.mat"
 
     # load the data
     data = sio.loadmat(dataset_path, squeeze_me=True)
@@ -36,7 +30,92 @@ def loadData():
     # return the data
     return d, index, label
 
-def createDataFrame(d, index, label, sampling_freq=25000):
+def loadPredictionData(filepath):
+    """
+    Load the data from the given filepath.
+
+    :param filepath: filepath
+    
+    :return: d
+    """
+
+    # load the data
+    data = sio.loadmat(filepath, squeeze_me=True)
+
+    # d is the raw time domain recording (1,440,000) 25kHz samlping frequency
+    d = data.get('d')
+
+    # return the data
+    return d
+
+def savePredictions(filepath, predictions, predictions_indicies):
+    """
+    Save the predictions to the given filepath.
+
+    :param filepath: filepath
+    :param predictions: predictions
+    :param predictions_indicies: predictions indicies
+    
+    :return: None
+    """
+
+    # save the predictions as a .mat file
+    sio.savemat(filepath, {'Class': predictions, 'Index': predictions_indicies})
+
+def preprocessTrainingData(d, index, label, cutoff_freq=1000, sampling_freq=25000, window_size=100):
+    """
+    Preprocess the data
+    
+    :param d: the raw time domain recording
+    :param index: the locations in the recording of the start of each spike
+    :param label: the class of each spike (1, 2, 3, 4, or 5), i.e. the type of
+                    neuron that fired it
+    :param cutoff_freq: cutoff frequency
+    :param sampling_freq: sampling frequency
+    :param window_size: window size
+
+    :return: df
+    """
+
+    
+    df = createDataFrame(d, index, label)
+
+    # normalize the data
+    df_norm = normalizeAmplitudes(df)
+
+    # filter the data
+    df_filtered = lowPassFilter(df_norm, cutoff_freq, sampling_freq)
+
+    # Split the data into windows
+    df_windows = createWindows(df_filtered, window_size)
+
+    return df_windows
+
+def preprocessPredictionData(d, cutoff_freq=1000, sampling_freq=25000, window_size=100):
+    """
+    Preprocess the data
+    
+    :param d: the raw time domain recording
+    :param cutoff_freq: cutoff frequency
+    :param sampling_freq: sampling frequency
+    :param window_size: window size
+
+    :return: df
+    """
+    df = createDataFrame(d)
+
+    # normalize the data
+    df_norm = normalizeAmplitudes(df)
+
+    # filter the data
+    df_filtered = lowPassFilter(df_norm, cutoff_freq, sampling_freq)
+
+    # Split the data into windows
+    df_windows = createWindows(df_filtered, window_size)
+
+    return df_windows
+
+def createDataFrame(d, index=None, label=None, sampling_freq=25000):
     """
     Create a dataframe from the data. The dataframe should have the following
     columns:
@@ -61,18 +140,20 @@ def createDataFrame(d, index, label, sampling_freq=25000):
     df['Time'] = np.arange(0, len(d)/sampling_freq, 1/sampling_freq)
     df['Amplitude'] = d
 
-    # add a label column to the dataframe and set all the values to 0
-    df['Label'] = 0
-    # set the values of the label column to the values in the label array at the
-    # locations given by the index array
-    df.loc[index, 'Label'] = label
+    # if index and label are not None then add a label column to the dataframe.
+    if index is not None and label is not None:
+        # add a label column to the dataframe and set all the values to 0
+        df['Label'] = 0
+        # set the values of the label column to the values in the label array at the
+        # locations given by the index array
+        df.loc[index, 'Label'] = label
 
-    # convert the label column to a one-hot encoded vector
-    labels =  tf.keras.utils.to_categorical(df['Label'])
+        # convert the label column to a one-hot encoded vector
+        labels =  tf.keras.utils.to_categorical(df['Label'])
 
-    # add the one-hot encoded vector to the dataframe
-    for i in range(len(labels[0])):
-        df['Label' + str(i)] = labels[:, i]
+        # add the one-hot encoded vector to the dataframe
+        for i in range(len(labels[0])):
+            df['Label' + str(i)] = labels[:, i]
 
     # return the dataframe
     return df

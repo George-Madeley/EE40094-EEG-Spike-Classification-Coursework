@@ -58,7 +58,11 @@ class NeuralNetwork(IArtificialIntelligence):
         :param batch_size: batch size
         :param epochs: epochs
         
-        :return: None
+        :return:
+            loss - a list of the loss values for each epoch. Loss is the error
+                   of the model.
+            accuracy - a list of the accuracy values for each epoch. Accuracy
+                       is the percentage of correct predictions.
         """
 
         # Get the the columns that start with 'Amplitude' and suffix with a number
@@ -70,7 +74,12 @@ class NeuralNetwork(IArtificialIntelligence):
         labels = df_train[label_names].values
 
         # Train the model
-        self.model.fit(amplitudes, labels, batch_size=batch_size, epochs=epochs, verbose=1)
+        history = self.model.fit(amplitudes, labels, batch_size=batch_size, epochs=epochs, verbose=1)
+
+        loss = history.history.get('loss',[])
+        accuracy = history.history.get('accuracy',[])
+
+        return loss, accuracy
 
     def test(self, df_test):
         """
@@ -78,7 +87,9 @@ class NeuralNetwork(IArtificialIntelligence):
 
         :param test_df: test dataframe
 
-        :return: loss, accuracy
+        :return:
+            loss - the error of the model.
+            accuracy - the percentage of correct predictions.
         """
 
         # Get the the columns that start with 'Amplitude' and suffix with a number

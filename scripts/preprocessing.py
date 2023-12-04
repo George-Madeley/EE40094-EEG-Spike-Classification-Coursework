@@ -1,13 +1,10 @@
 import pandas as pd
 import numpy as np
-import tensorflow as tf
 import scipy.io as sio
 import sys
 import matplotlib.pyplot as plt
-
+import tensorflow as tf
 from scipy.signal import butter, lfilter
-
-
 
 def loadData():
     """

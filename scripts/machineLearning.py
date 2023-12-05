@@ -1,5 +1,6 @@
 from keras.models import Sequential
 from keras.layers import Dense, InputLayer
+from keras.metrics import Precision, Recall
 
 import numpy as np
 
@@ -48,7 +49,7 @@ class NeuralNetwork(IArtificialIntelligence):
         model.add(Dense(numOutputs, activation='softmax'))
 
         # Compile the model
-        model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+        model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy', Precision(), Recall()])
 
         return model
     

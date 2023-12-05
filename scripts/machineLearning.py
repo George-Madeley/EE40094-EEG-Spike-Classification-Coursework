@@ -1,6 +1,8 @@
 from keras.models import Sequential
 from keras.layers import Dense, InputLayer, Conv1D, Flatten
 from keras.metrics import Precision, Recall
+from keras.optimizers import Adam
+from keras.callbacks import EarlyStopping
 
 import numpy as np
 import tensorflow as tf
@@ -33,8 +35,10 @@ class NeuralNetwork(IArtificialIntelligence):
         model.add(Flatten())
         model.add(Dense(numOutputs, activation='softmax'))
 
+        opt = Adam(learning_rate=0.001)
+
         # Compile the model
-        model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy', Precision(), Recall()])
+        model.compile(loss='categorical_crossentropy', optimizer=opt, metrics=['accuracy', Precision(), Recall()])
 
         return model
     
@@ -46,11 +50,7 @@ class NeuralNetwork(IArtificialIntelligence):
         :param batch_size: batch size
         :param epochs: epochs
         
-        :return:
-            loss - a list of the loss values for each epoch. Loss is the error
-                   of the model.
-            accuracy - a list of the accuracy values for each epoch. Accuracy
-                       is the percentage of correct predictions.
+        :return: None
         """
 
         # Get the the columns that start with 'Amplitude' and suffix with a number
@@ -69,15 +69,11 @@ class NeuralNetwork(IArtificialIntelligence):
         # turn labels into a tensor
         labels = tf.convert_to_tensor(labels, dtype=tf.float32)
 
+        # Add early stopping
+        early_stopping = EarlyStopping(monitor='val_loss', patience=10, mode='min')
+
         # Train the model
-        history = self.model.fit(amplitudes, labels, batch_size=batch_size, epochs=epochs, verbose=1)
-
-        loss = history.history.get('loss',[])
-        accuracy = history.history.get('accuracy',[])
-        precision = history.history.get('precision',[])
-        recall = history.history.get('recall',[])
-
-        return loss, accuracy, precision, recall
+        self.model.fit(amplitudes, labels, batch_size=batch_size, epochs=epochs, verbose=2, validation_split=0.2, callbacks=[early_stopping])
 
     def test(self, df_test):
         """
@@ -114,11 +110,6 @@ class NeuralNetwork(IArtificialIntelligence):
         accuracy = history[1]
         precision = history[2]
         recall = history[3]
-
-        print('Loss:', loss)
-        print('Accuracy:', accuracy)
-        print('Precision:', precision)
-        print('Recall:', recall)
 
         return loss, accuracy, precision, recall
     

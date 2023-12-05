@@ -17,7 +17,6 @@ def main():
         'Batch Size',
         'Window Size',
         'Epochs',
-        'Epoch No.',
         'Training',
         'Loss',
         'Accuracy',
@@ -27,7 +26,7 @@ def main():
 
     batch_size = 100
     window_size = 50
-    epochs = 10
+    epochs = 1000
     cutoff_freq = 1000
     sampling_freq = 25000
     SNR = 80
@@ -35,28 +34,14 @@ def main():
 
     d, index, label = pp.loadTrainingData()
 
-    losses, accuracies, precisions, recalls = run(
+    loss, accuracy, precision, recall = run(
         d,
         index,
         label,
         training_partition=0.8,
+        epochs=epochs,
     )
 
-    for i in range(epochs):
-        result = [
-            SNR,
-            filter_type,
-            cutoff_freq,
-            batch_size,
-            window_size,
-            epochs,
-            i,
-            'Training',
-            losses[i],
-            accuracies[i],
-            precisions[i],
-            recalls[i]]
-        writeResults(file_path, heading, result)
     result = [
         SNR,
         filter_type,
@@ -64,12 +49,11 @@ def main():
         batch_size,
         window_size,
         epochs,
-        -1,
-        'Testing',
-        losses[-1],
-        accuracies[-1],
-        precisions[-1],
-        recalls[-1]
+        'Training',
+        loss,
+        accuracy,
+        precision,
+        recall
     ]
     writeResults(file_path, heading, result)
 
@@ -127,44 +111,27 @@ def run(d, index, label, **kwargs):
     model = ml.NeuralNetwork(window_size, numOutputs)
 
     # Train the model
-    losses, accuracies, precisions, recalls = model.train(
-        df, batch_size, epochs)
+    model.train(df_train, batch_size, epochs)
 
     # Test the model
-    test(
-        training_partition,
-        df_test,
-        model,
-        losses,
-        accuracies,
-        precisions,
-        recalls)
+    loss, accuracy, precision, recall = test(training_partition, df_test, model)
 
     # Predict the labels of the data in D2.mat, D3.mat, D4.mat, D5.mat, and
     # D6.mat
     predict(window_size, cutoff_freq, sampling_freq, prediction, model)
 
-    return losses, accuracies, precisions, recalls
+    return loss, accuracy, precision, recall
 
 
 def test(
         training_partition,
         df_test,
-        model,
-        losses,
-        accuracies,
-        precisions,
-        recalls):
+        model):
     # If the training partition is less than 1, then the data was split into
     # training and testing sets. Therefore, we can test the model.
     if training_partition < 1:
         # Test the model
-        loss, accuracy, precision, recall = model.test(df_test)
-
-        losses.append(loss)
-        accuracies.append(accuracy)
-        precisions.append(precision)
-        recalls.append(recall)
+        return model.test(df_test)
 
 
 def predict(window_size, cutoff_freq, sampling_freq, prediction, model):

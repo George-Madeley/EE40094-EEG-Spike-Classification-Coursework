@@ -1,8 +1,9 @@
 from keras.models import Sequential
-from keras.layers import Dense, InputLayer
+from keras.layers import Dense, InputLayer, Conv1D, Flatten
 from keras.metrics import Precision, Recall
 
 import numpy as np
+import tensorflow as tf
 
 from IArtificialIntelligence import IArtificialIntelligence
 
@@ -13,39 +14,23 @@ class NeuralNetwork(IArtificialIntelligence):
     def __init__(self, numInputs, numOutputs):
         self.model = self.createModel(numInputs, numOutputs)
 
-    def createModel(self, numInputs, numOutputs, numHiddenLayers=None):
+    def createModel(self, numInputs, numOutputs):
         """
         Create a neural network model
         
         :param numInputs: number of inputs
         :param numOutputs: number of outputs
-        :param numHiddenLayers: A list of dictoinaries containing the number of
-                                neurons in each hidden layer, the activation,
-                                and the type of layer.
         
         :return: model
         """
 
-        # Set the default number of hidden layers if none is given
-        if numHiddenLayers is None:
-            numHiddenLayers = [
-                {'num_neurons': 100, 'activation': 'relu', 'type': 'dense'},
-                {'num_neurons': 100, 'activation': 'relu', 'type': 'dense'},
-            ]
+        num_hidden_neurons = 100
+        kernel_size = 3
 
-        # Create a sequential neural network model with 1 input layer, n hidden
-        # layers and 1 output layer.
         model = Sequential()
-        model.add(InputLayer(input_shape=(numInputs,)))
-
-        for layer_data in numHiddenLayers:
-            if layer_data.get('type') == 'dense':
-                model.add(Dense(layer_data.get('num_neurons', 100), activation=layer_data.get('activation', 'relu')))
-            else:
-                model.add(Dense(layer_data.get('num_neurons', 100), activation=layer_data.get('activation', 'relu')))
-        
-        # Add the output layer. The activation function is softmax, which is
-        # used for multi-class classification.
+        model.add(InputLayer(input_shape=(numInputs, 1)))
+        model.add(Conv1D(num_hidden_neurons, kernel_size=kernel_size, activation='relu'))
+        model.add(Flatten())
         model.add(Dense(numOutputs, activation='softmax'))
 
         # Compile the model
@@ -72,9 +57,17 @@ class NeuralNetwork(IArtificialIntelligence):
         amplitude_names = df_train.filter(regex='Amplitude\d+').columns
         amplitudes = df_train[amplitude_names].values
 
+        # Add a dimension to the amplitudes array for the convolutional layer
+        amplitudes = np.expand_dims(amplitudes, axis=2)
+        # turn amplitudes into a tensor
+        amplitudes = tf.convert_to_tensor(amplitudes, dtype=tf.float32)
+
         # Get the columns that start with 'Label' and suffix with a number
         label_names = df_train.filter(regex='Label\d+').columns
         labels = df_train[label_names].values
+
+        # turn labels into a tensor
+        labels = tf.convert_to_tensor(labels, dtype=tf.float32)
 
         # Train the model
         history = self.model.fit(amplitudes, labels, batch_size=batch_size, epochs=epochs, verbose=1)
@@ -101,9 +94,18 @@ class NeuralNetwork(IArtificialIntelligence):
         amplitude_names = df_test.filter(regex='Amplitude\d+').columns
         amplitudes = df_test[amplitude_names].values
 
+        # Add a dimension to the amplitudes array for the convolutional layer
+        amplitudes = np.expand_dims(amplitudes, axis=2)
+
+        # Turn amplitudes into a tensor
+        amplitudes = tf.convert_to_tensor(amplitudes, dtype=tf.float32)
+
         # Get the columns that start with 'Label' and suffix with a number
         label_names = df_test.filter(regex='Label\d+').columns
         labels = df_test[label_names].values
+
+        # Turn labels into a tensor
+        labels = tf.convert_to_tensor(labels, dtype=tf.float32)
 
         # Evaluate the model
         history = self.model.evaluate(amplitudes, labels, verbose=1)
@@ -132,6 +134,12 @@ class NeuralNetwork(IArtificialIntelligence):
         # Get the the columns that start with 'Amplitude' and suffix with a number
         amplitude_names = df.filter(regex='Amplitude\d+').columns
         amplitudes = df[amplitude_names].values
+
+        # Add a dimension to the amplitudes array for the convolutional layer
+        amplitudes = np.expand_dims(amplitudes, axis=2)
+
+        # turn amplitudes into a tensor
+        amplitudes = tf.convert_to_tensor(amplitudes, dtype=tf.float32)
 
         # Predict the class of each window
         predictions = self.model.predict(amplitudes)

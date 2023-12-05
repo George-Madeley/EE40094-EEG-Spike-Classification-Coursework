@@ -1,9 +1,8 @@
+import machineLearning as ml
+import preprocessing as pp
 import os
 import csv
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-
-import preprocessing as pp
-import machineLearning as ml
 
 
 def main():
@@ -11,7 +10,20 @@ def main():
     Main function
     """
 
-    heading = ['SNR', 'filter_type', 'Cutoff Frequency', 'Layer Type', 'Batch Size', 'Window Size', 'Epochs', 'Epoch No.', 'Training', 'Loss', 'Accuracy']
+    heading = [
+        'SNR',
+        'filter_type',
+        'Cutoff Frequency',
+        'Layer Type',
+        'Batch Size',
+        'Window Size',
+        'Epochs',
+        'Epoch No.',
+        'Training',
+        'Loss',
+        'Accuracy',
+        'Precision',
+        'Recall']
     file_path = getResultsFileName('results.csv', heading, 'results')
 
     batch_size = 100
@@ -23,31 +35,62 @@ def main():
     filter_type = 'low'
     layer_type = 'Dense'
 
-    
     d, index, label = pp.loadTrainingData()
 
-    losses, accuracies = test(d, index, label, batch_size, window_size, epochs, cutoff_freq, sampling_freq, prediction=True)
+    losses, accuracies, precisions, recalls = run(
+        d, index, label, training_partition=0.8)
 
     for i in range(epochs):
-        result = [SNR, filter_type, cutoff_freq, layer_type, batch_size, window_size, epochs, i, 'Training', losses[i], accuracies[i]]
+        result = [
+            SNR,
+            filter_type,
+            cutoff_freq,
+            layer_type,
+            batch_size,
+            window_size,
+            epochs,
+            i,
+            'Training',
+            losses[i],
+            accuracies[i],
+            precisions[i],
+            recalls[i]]
         writeResults(file_path, heading, result)
-    result = [SNR, filter_type, cutoff_freq, layer_type, batch_size, window_size, epochs, -1, 'Testing', losses[-1], accuracies[-1]]
+    result = [
+        SNR,
+        filter_type,
+        cutoff_freq,
+        layer_type,
+        batch_size,
+        window_size,
+        epochs,
+        -1,
+        'Testing',
+        losses[-1],
+        accuracies[-1],
+        precisions[-1],
+        recalls[-1]
+    ]
     writeResults(file_path, heading, result)
-    
 
-def test(d, index, label, batch_size=100, window_size=100, epochs=10, cutoff_freq=1000, sampling_freq=25000, prediction=False):
+
+def run(d, index, label, **kwargs):
     """
     Test the model
 
-    :param batch_size: batch size
-    :param window_size: window size
-    :param epochs: epochs
-    :param cutoff_freq: cutoff frequency
-    :param sampling_freq: sampling frequency
     :param d: data
     :param index: index
     :param label: label
-    :param prediction: prediction
+    :param kwargs: keyword arguments. Possible keyword arguments are:
+        batch_size - the number of samples per gradient update
+        window_size - the number of samples per window
+        epochs - the number of epochs to train the model
+        cutoff_freq - the cutoff frequency of the low pass filter
+        sampling_freq - frequency at which the data was sampled
+        training_partition - the amout of data to use for training the model.
+        prediction - if True, then predict the labels of the data in D2.mat,
+                        D3.mat, D4.mat, D5.mat, and D6.mat. The predictions
+                        will be saved in the results directory.
 
     :return:
         loss - a list of the loss values for each epoch. Loss is the error
@@ -56,30 +99,75 @@ def test(d, index, label, batch_size=100, window_size=100, epochs=10, cutoff_fre
                    is the percentage of correct predictions.
     """
 
-    # Preprocess the data
-    df = pp.preprocessTrainingData(d, index, label, cutoff_freq, sampling_freq, window_size)
+    # Get the keyword arguments
+    batch_size = kwargs.get('batch_size', 100)
+    window_size = kwargs.get('window_size', 100)
+    epochs = kwargs.get('epochs', 10)
+    cutoff_freq = kwargs.get('cutoff_freq', 1000)
+    sampling_freq = kwargs.get('sampling_freq', 25000)
+    prediction = kwargs.get('prediction', False)
+    training_partition = kwargs.get('training_partition', 1)
 
-    # the amout of data to use for training the model. The rest of the data will
-    # be used for testing the model.
-    training_partition = 1
+    # Preprocess the data
+    df = pp.preprocessTrainingData(
+        d,
+        index,
+        label,
+        cutoff_freq,
+        sampling_freq,
+        window_size)
 
     # Split the data into training and testing sets
     df_train, df_test = pp.getTrainAndTestData(df, training_partition)
 
+    # Get the number of possible outputs
     numOutputs = len(df['Label'].unique())
+
     # Create the model
     model = ml.NeuralNetwork(window_size, numOutputs)
-    # Train the model
-    losses, accuracies = model.train(df, batch_size, epochs)
 
+    # Train the model
+    losses, accuracies, precisions, recalls = model.train(
+        df, batch_size, epochs)
+
+    # Test the model
+    test(
+        training_partition,
+        df_test,
+        model,
+        losses,
+        accuracies,
+        precisions,
+        recalls)
+
+    # Predict the labels of the data in D2.mat, D3.mat, D4.mat, D5.mat, and
+    # D6.mat
+    predict(window_size, cutoff_freq, sampling_freq, prediction, model)
+
+    return losses, accuracies, precisions, recalls
+
+
+def test(
+        training_partition,
+        df_test,
+        model,
+        losses,
+        accuracies,
+        precisions,
+        recalls):
     # If the training partition is less than 1, then the data was split into
     # training and testing sets. Therefore, we can test the model.
     if training_partition < 1:
         # Test the model
-        loss, accuracy = model.test(df_test)
+        loss, accuracy, precision, recall = model.test(df_test)
 
         losses.append(loss)
         accuracies.append(accuracy)
+        precisions.append(precision)
+        recalls.append(recall)
+
+
+def predict(window_size, cutoff_freq, sampling_freq, prediction, model):
 
     # If prediction is True, then we want to predict the labels of the data in
     # D2.mat, D3.mat, D4.mat, D5.mat, and D6.mat. The predictions will be saved
@@ -92,8 +180,9 @@ def test(d, index, label, batch_size=100, window_size=100, epochs=10, cutoff_fre
             d = pp.loadPredictionData(filepath)
 
             # Preprocess the data
-            df_prediction = pp.preprocessPredictionData(d, cutoff_freq, sampling_freq, window_size)
-            
+            df_prediction = pp.preprocessPredictionData(
+                d, cutoff_freq, sampling_freq, window_size)
+
             # Make the predictions
             predictions, prediction_indicies = model.predict(df_prediction)
 
@@ -101,17 +190,16 @@ def test(d, index, label, batch_size=100, window_size=100, epochs=10, cutoff_fre
             filepath = os.path.join('results', f'D{i}.mat')
             pp.savePredictions(filepath, predictions, prediction_indicies)
 
-    return losses, accuracies
 
 def getResultsFileName(name: str, header: list[str], *directories) -> str:
     """
     Get the results file name. Create the file and directories if they do not
     exist.
-    
+
     :param name: name of the file
     :param header: header of the file
     :param directories: directories to find the file in.
-    
+
     :return: file path
     """
 
@@ -134,14 +222,15 @@ def getResultsFileName(name: str, header: list[str], *directories) -> str:
 
     return file_path
 
+
 def writeResults(file_path: str, headers: list[str], row: list) -> None:
     """
     Write the results to the file.
-    
+
     :param file_path: file path
     :param headers: headers
     :param row: row
-    
+
     :return: None
     """
 
@@ -166,8 +255,6 @@ def writeResults(file_path: str, headers: list[str], row: list) -> None:
         with open(file_path, 'a', newline='') as f:
             writer = csv.DictWriter(f, fieldnames=headers)
             writer.writerow(results)
-        
-
 
 
 if __name__ == '__main__':

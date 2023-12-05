@@ -81,8 +81,10 @@ class NeuralNetwork(IArtificialIntelligence):
 
         loss = history.history.get('loss',[])
         accuracy = history.history.get('accuracy',[])
+        precision = history.history.get('precision',[])
+        recall = history.history.get('recall',[])
 
-        return loss, accuracy
+        return loss, accuracy, precision, recall
 
     def test(self, df_test):
         """
@@ -104,12 +106,19 @@ class NeuralNetwork(IArtificialIntelligence):
         labels = df_test[label_names].values
 
         # Evaluate the model
-        loss, accuracy = self.model.evaluate(amplitudes, labels, verbose=1)
+        history = self.model.evaluate(amplitudes, labels, verbose=1)
+
+        loss = history[0]
+        accuracy = history[1]
+        precision = history[2]
+        recall = history[3]
 
         print('Loss:', loss)
         print('Accuracy:', accuracy)
+        print('Precision:', precision)
+        print('Recall:', recall)
 
-        return loss, accuracy
+        return loss, accuracy, precision, recall
     
     def predict(self, df):
         """

@@ -40,6 +40,7 @@ def main():
         label,
         training_partition=0.8,
         epochs=epochs,
+        prediction=True,
     )
 
     result = [
@@ -152,6 +153,10 @@ def predict(window_size, cutoff_freq, sampling_freq, prediction, model):
 
             # Make the predictions
             predictions, prediction_indicies = model.predict(df_prediction)
+
+            # calculate the number of predictions
+            num_predictions = len(predictions)
+            print(f'Number of predictions for D{i}.mat: {num_predictions}')
 
             # Save the predictions
             filepath = os.path.join('results', f'D{i}.mat')

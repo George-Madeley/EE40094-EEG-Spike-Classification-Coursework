@@ -84,7 +84,7 @@ def preprocessTrainingData(d, index, label, cutoff_freq=1000, sampling_freq=2500
     df_norm = normalizeAmplitudes(df)
 
     dataFrames = []
-    for SNR in range (0, 101, 20):
+    for SNR in range(0, 101, 20):
         # add noise to the data
         df_noise = addNoise(df_norm, SNR)
         # filter the data
@@ -288,18 +288,45 @@ def unbiasData(df):
     :return: dataframe
     """
 
-    # Get the columns that start with 'Label' and suffix with a number
+    # To unbias the data, we need to ensure that all positive labels (i.e., 
+    # labels that are not 0) have the same number of windows. This ensures there
+    # is no bias towards a particular label. However, we also want to keep the
+    # number of windows for the negative label (i.e., label 0) the same as the
+    # total number of windows for the positive labels. This ensures that the
+    # model does not over predict the positive labels.
+
+    # Before either of these can be done, we need to find the minimum number of
+    # windows for the positive labels. This will be used as the number of
+    # windows for the positive labels and the negative label.
+
+    # We first get all of the one-hot encoded label columns and sum the values
+    # in each column. This will give us the number of windows for each label. We
+    # then find the minimum number of windows for the positive labels.
     label_names = df.filter(regex='Label\d+').columns
-    # for each label column, sum the values in the column
     label_sums = df[label_names].sum()
-    # get the minimum sum
-    min_sum = label_sums.min()
-    # Randomly select min_sum rows from each label
-    df = df.groupby('Label', group_keys=False).apply(lambda x: x.sample(int(min_sum)))
+    min_sum = int(label_sums.min())
+
+    # To unbias the data, we group the rows by the label column. We then
+    # randomly select min_sum  number of rows from each group. This ensures that
+    # the number of windows for each label is the same.
+    grouped = df.groupby('Label')
+    df_group = grouped.apply(lambda x: x.sample(min_sum)).reset_index(drop=True)
+
+    # However, this will result in the number of windows for the negative label
+    # being less than the number of windows for the positive labels. To fix
+    # this, we remove all the rows that have a label of 0. We then randomly
+    # select (min_sum * number of positive labels) number of rows from the
+    # dataframe where the label is 0.
+    df_group = df_group[df_group['Label'] != 0]
+    # calculate the number of lables
+    num_labels = int(len(label_names))
+    df_label0 = df[df['Label'] == 0].sample(min_sum * (num_labels - 1))
+
+    # We then concat the two dataframes together to get the unbias dataframe.
+    df = pd.concat([df_group, df_label0])
     
-    # reset the index
-    df = df.reset_index(drop=True)
-    # shuffle the dataframe
+    # We then shuffle the dataframe to ensure that the data is not ordered by
+    # label and therefore does not overfit to a particular label.
     df = df.sample(frac=1).reset_index(drop=True)
 
     return df

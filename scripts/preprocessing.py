@@ -83,16 +83,26 @@ def preprocessTrainingData(d, index, label, cutoff_freq=1000, sampling_freq=2500
     # normalize the data
     df_norm = normalizeAmplitudes(df)
 
-    # filter the data
-    df_filtered = lowPassFilter(df_norm, cutoff_freq, sampling_freq)
+    dataFrames = []
+    for SNR in range (0, 101, 20):
+        # add noise to the data
+        df_noise = addNoise(df_norm, SNR)
+        # filter the data
+        df_filtered = lowPassFilter(df_noise, cutoff_freq, sampling_freq)
+        # Split the data into windows
+        df_windows = createWindows(df_filtered, window_size)
+        # Unbias the data
+        df_unbias = unbiasData(df_windows)
+        # add the dataframe to the list of dataframes
+        dataFrames.append(df_unbias)
 
-    # Split the data into windows
-    df_windows = createWindows(df_filtered, window_size)
+    # concat the dataframes
+    df = pd.concat(dataFrames)
 
-    # Unbias the data
-    df_unbias = unbiasData(df_windows)
+    # shuffle the dataframe
+    df = df.sample(frac=1).reset_index(drop=True)
 
-    return df_unbias
+    return df
 
 def preprocessPredictionData(d, cutoff_freq=1000, sampling_freq=25000, window_size=100):
     """
@@ -175,6 +185,44 @@ def normalizeAmplitudes(df):
     df['Amplitude'] = df['Amplitude'] / df['Amplitude'].max()
 
     return df
+
+def addNoise(df, SNR):
+    """
+    Add noise to the data
+    
+    :param df: dataframe
+    :param SNR: signal to noise ratio
+    
+    :return: dataframe
+
+    :raises ValueError: if SNR is not between 0 and 100
+    """
+
+    if 0 > SNR or SNR > 100:
+        raise ValueError('SNR must be between 0 and 100')
+
+    # Generate a noisy signal ranging from -1 to 1
+    noise = np.random.uniform(-1, 1, len(df['Amplitude']))
+
+    # Divide the SNR by 100 to get the difference between the max amplitude and
+    # the max noise
+    SNR = SNR / 100
+
+    # Get the max noise amplitude
+    noise_factor = 1 - SNR
+
+    # Multiply the noise by the noise factor
+    noise = noise * noise_factor
+
+    df_noise = df.copy()
+
+    # Add the noise to the amplitude column
+    df_noise['Amplitude'] = df_noise['Amplitude'] + noise
+
+    # Normalize the amplitude column so that the values are between -1 and 1
+    df_noise = normalizeAmplitudes(df)
+
+    return df_noise
 
 def lowPassFilter(df, cutoff_freq, sampling_freq, order=5):
     """
@@ -278,43 +326,22 @@ def getTrainAndTestData(df, train_size):
 
     return df_train, df_test
 
-def plot_data(index, label, df_norm, df_filtered, num_samples_plot=5000):
+def plot_data(df, num_samples_plot=5000, color='blue', label='Raw'):
     """
     Plot the raw and filtered data
     
-    :param index: the locations in the recording of the start of each spike
-    :param label: the class of each spike (1, 2, 3, 4, or 5), i.e. the type of
-                  neuron that fired it
-    :param df_norm: the normalized dataframe
-    :param df_filtered: the filtered dataframe
+    :param df: dataframe
+    :param num_samples_plot: number of samples to plot
+    :param color: color
+    :param label: label
     
     :return: None
     """
-    plt.plot(df_norm['Time'][:num_samples_plot],
-             df_norm['Amplitude'][:num_samples_plot],
-             color='blue',
-             label='Raw')
-
-    # Plot the locations of the spikes on to the graph given by the index array.
-    # The marker should be an number given by the label array.
-    indices_plot = index[index < num_samples_plot]
-    labels_plot = label[index < num_samples_plot]
-    plt.scatter(
-        df_norm['Time'][indices_plot],
-        df_norm['Amplitude'][indices_plot],
-        c=labels_plot,
-        cmap='rainbow',
-        label='Spikes',
-        s=100,
-        marker='x'
-    )
-
-    
-    # plot the filtered data on to a line graph
-    plt.plot(df_filtered['Time'][:num_samples_plot],
-             df_filtered['Amplitude'][:num_samples_plot],
-             color='red',
-             label='Filtered')
+    # plot the data
+    plt.plot(df['Time'][:num_samples_plot],
+             df['Amplitude'][:num_samples_plot],
+             color=color,
+             label=label)
 
     # add a legend to the graph
     plt.legend()
@@ -323,8 +350,6 @@ def plot_data(index, label, df_norm, df_filtered, num_samples_plot=5000):
     # add labels to the x and y axes
     plt.xlabel('Time (s)')
     plt.ylabel('Amplitude')
-    # display the graph
-    plt.show()
 
 def generateSpectogram(df, frame_length, frame_step):
     """

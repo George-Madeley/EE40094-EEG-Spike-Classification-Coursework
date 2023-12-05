@@ -70,7 +70,7 @@ class NeuralNetwork(IArtificialIntelligence):
         labels = tf.convert_to_tensor(labels, dtype=tf.float32)
 
         # Add early stopping
-        early_stopping = EarlyStopping(monitor='val_loss', patience=10, mode='min')
+        early_stopping = EarlyStopping(monitor='val_precision', patience=20, mode='max')
 
         # Train the model
         self.model.fit(amplitudes, labels, batch_size=batch_size, epochs=epochs, verbose=2, validation_split=0.2, callbacks=[early_stopping])

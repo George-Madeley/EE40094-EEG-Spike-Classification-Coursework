@@ -14,7 +14,6 @@ def main():
         'SNR',
         'filter_type',
         'Cutoff Frequency',
-        'Layer Type',
         'Batch Size',
         'Window Size',
         'Epochs',
@@ -33,19 +32,21 @@ def main():
     sampling_freq = 25000
     SNR = 80
     filter_type = 'low'
-    layer_type = 'Dense'
 
     d, index, label = pp.loadTrainingData()
 
     losses, accuracies, precisions, recalls = run(
-        d, index, label, training_partition=0.8)
+        d,
+        index,
+        label,
+        training_partition=0.8,
+    )
 
     for i in range(epochs):
         result = [
             SNR,
             filter_type,
             cutoff_freq,
-            layer_type,
             batch_size,
             window_size,
             epochs,
@@ -60,7 +61,6 @@ def main():
         SNR,
         filter_type,
         cutoff_freq,
-        layer_type,
         batch_size,
         window_size,
         epochs,

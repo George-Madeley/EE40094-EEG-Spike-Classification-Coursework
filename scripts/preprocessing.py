@@ -62,7 +62,7 @@ def savePredictions(filepath, predictions, predictions_indicies):
     # save the predictions as a .mat file
     sio.savemat(filepath, {'Class': predictions, 'Index': predictions_indicies})
 
-def preprocessTrainingData(d, index, label, cutoff_freq=1000, sampling_freq=25000, window_size=100):
+def preprocessTrainingData(d, index, label, cutoff_freq=1000, sampling_freq=25000, window_size=100, zero_bias_coefficient=8):
     """
     Preprocess the data
     
@@ -73,6 +73,14 @@ def preprocessTrainingData(d, index, label, cutoff_freq=1000, sampling_freq=2500
     :param cutoff_freq: cutoff frequency
     :param sampling_freq: sampling frequency
     :param window_size: window size
+    :param zero_bias_coefficient: If the coefficient is 1, then the number of
+                                    windows for the negative label will be the
+                                    same as the number of windows for the
+                                    positive labels. If the coefficient is
+                                    greater than 1, then the number of windows
+                                    for the negative label will be greater than
+                                    the number of windows for the positive and
+                                    vice versa.
 
     :return: df
     """
@@ -92,7 +100,7 @@ def preprocessTrainingData(d, index, label, cutoff_freq=1000, sampling_freq=2500
         # Split the data into windows
         df_windows = createWindows(df_filtered, window_size)
         # Unbias the data
-        df_unbias = unbiasData(df_windows)
+        df_unbias = unbiasData(df_windows, zero_bias_coefficient)
         # add the dataframe to the list of dataframes
         dataFrames.append(df_unbias)
 
@@ -331,6 +339,13 @@ def unbiasData(df, zero_bias_coefficient=8):
     # randomly select (min_sum * number of positive labels) number of rows from
     # the dataframe where the label is 0. We can multiply the zero_bias_coefficient
     # to get a bias towards the negative label.
+    # Calculate the number of rows with a label of 0
+    num_label0 = df[df['Label'] == 0].shape[0]
+    num_0_samples = min_sum * (num_labels - 1) * zero_bias_coefficient
+    # Riase an error if the number of rows with a label of 0 is less than the
+    # number of negative levels to sample
+    if num_label0 < num_0_samples:
+        raise ValueError('The number of samples with a label of 0 is less than the number of negative levels to sample')
     df_label0 = df[df['Label'] == 0].sample(min_sum * (num_labels - 1) * zero_bias_coefficient)
 
     # We then concat the two dataframes together to get the unbias dataframe.

@@ -113,11 +113,13 @@ class NeuralNetwork(IArtificialIntelligence):
 
         return loss, accuracy, precision, recall
     
-    def predict(self, df):
+    def predict(self, df, probability_threshold=0.9):
         """
         Predict the class of each window
 
         :param df: dataframe
+        :param probability_threshold: The threshold the predictions must exceed
+                                        to be considered a positive prediction.
 
         :return: predictions, predictions_indicies
         """
@@ -134,6 +136,15 @@ class NeuralNetwork(IArtificialIntelligence):
 
         # Predict the class of each window
         predictions = self.model.predict(amplitudes)
+
+        # Get the max probability of each prediction
+        max_predictions = predictions.max(axis=1)
+
+        # Get the indicies where the predictions exceed the probability threshold
+        predictions_indicies = np.where(max_predictions >= probability_threshold)[0]
+
+        # get the predictions that exceed the probability threshold
+        predictions = predictions[predictions_indicies]
 
         # Find the class with the highest probability
         predictions = predictions.argmax(axis=1)

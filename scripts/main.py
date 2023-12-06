@@ -10,27 +10,24 @@ def main():
     Main function
     """
 
-    heading = [
-        'SNR',
-        'filter_type',
-        'Cutoff Frequency',
-        'Batch Size',
-        'Window Size',
-        'Epochs',
-        'Training',
-        'Loss',
-        'Accuracy',
-        'Precision',
-        'Recall']
-    file_path = getResultsFileName('results.csv', heading, 'results')
+    kwargs = {
+        'SNR': 80,
+        'filter_type': 'lowpass',
+        'batch_size': 100,
+        'window_size': 50,
+        'zero_bias_coefficient': 16,
+        'epochs': 1000,
+        'cutoff_freq': 1000,
+        'sampling_freq': 25000,
+        'prediction': True,
+        'training_partition': 0.8,
+        'loss': None,
+        'accuracy': None,
+        'precision': None,
+        'recall': None
+    }
 
-    batch_size = 100
-    window_size = 50
-    epochs = 1000
-    cutoff_freq = 1000
-    sampling_freq = 25000
-    SNR = 80
-    filter_type = 'low'
+    file_path = getResultsFileName('results.csv', kwargs.keys(), 'results')
 
     d, index, label = pp.loadTrainingData()
 
@@ -38,25 +35,15 @@ def main():
         d,
         index,
         label,
-        training_partition=0.8,
-        epochs=epochs,
-        prediction=True,
+        **kwargs
     )
 
-    result = [
-        SNR,
-        filter_type,
-        cutoff_freq,
-        batch_size,
-        window_size,
-        epochs,
-        'Training',
-        loss,
-        accuracy,
-        precision,
-        recall
-    ]
-    writeResults(file_path, heading, result)
+    kwargs['loss'] = loss
+    kwargs['accuracy'] = accuracy
+    kwargs['precision'] = precision
+    kwargs['recall'] = recall
+
+    writeResults(file_path, kwargs.keys(), kwargs.values())
 
 
 def run(d, index, label, **kwargs):
@@ -84,42 +71,35 @@ def run(d, index, label, **kwargs):
                    is the percentage of correct predictions.
     """
 
-    # Get the keyword arguments
-    batch_size = kwargs.get('batch_size', 100)
-    window_size = kwargs.get('window_size', 100)
-    epochs = kwargs.get('epochs', 10)
-    cutoff_freq = kwargs.get('cutoff_freq', 1000)
-    sampling_freq = kwargs.get('sampling_freq', 25000)
-    prediction = kwargs.get('prediction', False)
-    training_partition = kwargs.get('training_partition', 1)
-
     # Preprocess the data
     df = pp.preprocessTrainingData(
         d,
         index,
         label,
-        cutoff_freq,
-        sampling_freq,
-        window_size)
+        kwargs['cutoff_freq'],
+        kwargs['sampling_freq'],
+        kwargs['window_size'],
+        kwargs['zero_bias_coefficient'],
+    )
 
     # Split the data into training and testing sets
-    df_train, df_test = pp.getTrainAndTestData(df, training_partition)
+    df_train, df_test = pp.getTrainAndTestData(df, kwargs['training_partition'])
 
     # Get the number of possible outputs
     numOutputs = len(df['Label'].unique())
 
     # Create the model
-    model = ml.NeuralNetwork(window_size, numOutputs)
+    model = ml.NeuralNetwork(kwargs['window_size'], numOutputs)
 
     # Train the model
-    model.train(df_train, batch_size, epochs)
+    model.train(df_train, kwargs['batch_size'], kwargs['epochs'])
 
     # Test the model
-    loss, accuracy, precision, recall = test(training_partition, df_test, model)
+    loss, accuracy, precision, recall = test(kwargs['training_partition'], df_test, model)
 
     # Predict the labels of the data in D2.mat, D3.mat, D4.mat, D5.mat, and
     # D6.mat
-    predict(window_size, cutoff_freq, sampling_freq, prediction, model)
+    predict(kwargs['window_size'], kwargs['cutoff_freq'], kwargs['sampling_freq'], kwargs['prediction'], model)
 
     return loss, accuracy, precision, recall
 

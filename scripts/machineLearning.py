@@ -6,6 +6,8 @@ from keras.callbacks import EarlyStopping
 
 import numpy as np
 import tensorflow as tf
+import matplotlib.pyplot as plt
+from scipy.ndimage.filters import maximum_filter
 
 from IArtificialIntelligence import IArtificialIntelligence
 
@@ -113,7 +115,7 @@ class NeuralNetwork(IArtificialIntelligence):
 
         return loss, accuracy, precision, recall
     
-    def predict(self, df, probability_threshold=0.9):
+    def predict(self, df, probability_threshold=0.1):
         """
         Predict the class of each window
 
@@ -137,23 +139,81 @@ class NeuralNetwork(IArtificialIntelligence):
         # Predict the class of each window
         predictions = self.model.predict(amplitudes)
 
-        # Get the max probability of each prediction
-        max_predictions = predictions.max(axis=1)
+        # Perform a max convolution on the amplitude0 column with a kernel size
+        # equal to the window size.
+        amplitude0 = df['Amplitude0'].values
+        amplitude0 = maximum_filter(amplitude0, size=40)
 
-        # Get the indicies where the predictions exceed the probability threshold
-        predictions_indicies = np.where(max_predictions >= probability_threshold)[0]
+        # num_samples = 5000
 
-        # get the predictions that exceed the probability threshold
-        predictions = predictions[predictions_indicies]
+        # # Create a subplot with 2 rows and 1 column
+        # fig, ax = plt.subplots(3, 1)
+
+        # # For the first subplot, plot the ampltiudes of the first 5000 samples
+        # plt.subplot(3, 1, 1)
+        # plt.plot(amplitude0[:num_samples])
+        # plt.xlabel('Time (s)')
+        # plt.ylabel('Amplitude')
+        # plt.title('Amplitude of the First 5000 Samples')
+
+        # # Plot a line graph with window number on the x-axis and the probability
+        # # of each class on the y-axis for the first 5000 samples. Plot each 
+        # # class on the same graph.
+        # plt.subplot(3, 1, 2)
+        # for i in range(len(predictions[0])):
+        #     plt.plot(predictions[:num_samples, i], label='Class ' + str(i))
+        # plt.xlabel('Window Number')
+        # plt.ylabel('Probability')
+        # plt.title('Probability of Each Class for the First 5000 Samples')
+        # plt.legend()
+
+        # # perform element-wise multiplication of the probabilities and the
+        # # amplitude0
+        # product_probabilities = predictions * amplitude0[:, np.newaxis]
+
+        # plt.subplot(3, 1, 3)
+        # for i in range(len(predictions[0])):
+        #     plt.plot(product_probabilities[:num_samples, i], label='Class ' + str(i))
+        # plt.xlabel('Window Number')
+        # plt.ylabel('Probability')
+        # plt.title('Probability of Each Class for the First 5000 Samples')
+        # plt.legend()
+
+        # plt.show()
+
+        # For each label in the predictions, find the indicies of the
+        # probabilities that are greater than the probability before and after
+        # it. This will give us the indicies of the peaks in the predictions.
+        product_probabilities[:, 0] = 0
+        for i in range(1, product_probabilities.shape[1]):
+            # calculate the before and after probabilities
+            before = np.roll(product_probabilities[:, i], 1)
+            after = np.roll(product_probabilities[:, i], -1)
+
+            # Find the indicies of the peaks
+            indicies = np.where(
+                (product_probabilities[:, i] > before) &
+                (product_probabilities[:, i] > after) &
+                (product_probabilities[:, i] >= probability_threshold)
+            )[0]
+
+            # Get the probabilities at the peaks
+            probabilities = product_probabilities[indicies, i]
+
+            # Set all the probabilities to 0
+            product_probabilities[:, i] = 0
+
+            # Set the probabilities at the peaks to the probabilities
+            product_probabilities[indicies, i] = probabilities
 
         # Find the class with the highest probability
-        predictions = predictions.argmax(axis=1)
+        product_probabilities = product_probabilities.argmax(axis=1)
 
         # Get the indicies where the predictions are not 0
-        predictions_indicies = np.where(predictions != 0)[0]
+        predictions_indicies = np.where(product_probabilities != 0)[0]
 
         # Get the predictions that are not 0
-        predictions = predictions[predictions_indicies]
+        predictions = product_probabilities[predictions_indicies]
 
         return predictions, predictions_indicies
     

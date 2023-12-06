@@ -279,11 +279,19 @@ def createWindows(df, window_size):
 
     return df_windows
 
-def unbiasData(df):
+def unbiasData(df, zero_bias_coefficient=8):
     """
     Unbias the data by keeping the number of windows for each label the same.
     
     :param df: dataframe
+    :param zero_bias_coefficient: If the coefficient is 1, then the number of
+                                    windows for the negative label will be the
+                                    same as the number of windows for the
+                                    positive labels. If the coefficient is
+                                    greater than 1, then the number of windows
+                                    for the negative label will be greater than
+                                    the number of windows for the positive and
+                                    vice versa.
     
     :return: dataframe
     """
@@ -320,7 +328,10 @@ def unbiasData(df):
     df_group = df_group[df_group['Label'] != 0]
     # calculate the number of lables
     num_labels = int(len(label_names))
-    df_label0 = df[df['Label'] == 0].sample(min_sum * (num_labels - 1))
+    # randomly select (min_sum * number of positive labels) number of rows from
+    # the dataframe where the label is 0. We can multiply the zero_bias_coefficient
+    # to get a bias towards the negative label.
+    df_label0 = df[df['Label'] == 0].sample(min_sum * (num_labels - 1) * zero_bias_coefficient)
 
     # We then concat the two dataframes together to get the unbias dataframe.
     df = pd.concat([df_group, df_label0])

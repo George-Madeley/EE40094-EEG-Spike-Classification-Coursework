@@ -93,7 +93,10 @@ def preprocessTrainingData(d, index, label, low_cutoff_freq=1000, high_cutoff_fr
     df_norm = normalizeAmplitudes(df)
 
     dataFrames = []
-    for SNR in range(0, 101, 20):
+    low_noise = 20
+    high_noise = 100
+    step = int((high_noise - low_noise) / 5)
+    for SNR in range(low_noise, high_noise + 1, step):
         # add noise to the data
         df_noise = addNoise(df_norm, SNR)
         # filter the data. Filtering can cause the amplitudes to decrease in
@@ -217,8 +220,13 @@ def addNoise(df, SNR):
     if 0 > SNR or SNR > 100:
         raise ValueError('SNR must be between 0 and 100')
 
-    # Generate a noisy signal ranging from -1 to 1
-    noise = np.random.uniform(-1, 1, len(df['Amplitude']))
+    # Generate a gaussian noise signal with amplitudes ranging from -1 to 1 and
+    # a mean of 0 and a standard deviation of 1 and frequencies from 0 to 25kHz
+    # with a sampling frequency of 25kHz
+    noise = np.random.normal(0, 1, len(df['Amplitude']))
+
+    # Normalize the noise so that the values are between -1 and 1
+    noise = noise / noise.max()
 
     # Divide the SNR by 100 to get the difference between the max amplitude and
     # the max noise
@@ -235,8 +243,8 @@ def addNoise(df, SNR):
     # Add the noise to the amplitude column
     df_noise['Amplitude'] = df_noise['Amplitude'] + noise
 
-    # Normalize the amplitude column so that the values are between -1 and 1
-    df_noise = normalizeAmplitudes(df)
+    # Cap the amplitude values at -1 and 1
+    df_noise['Amplitude'] = df_noise['Amplitude'].clip(-1, 1)
 
     return df_noise
 

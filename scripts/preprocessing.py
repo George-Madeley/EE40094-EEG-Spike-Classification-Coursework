@@ -404,34 +404,4 @@ def plot_data(df, num_samples_plot=5000, color='blue', label='Raw'):
     plt.xlabel('Time (s)')
     plt.ylabel('Amplitude')
 
-def generateSpectogram(df, frame_length, frame_step):
-    """
-    Generate a spectogram of the data
-    
-    :param df: dataframe
-    :param frame_length: frame length
-    :param frame_step: frame step
-    
-    :return: spectogram
-    """
-    
-    # get the amplitude column
-    amplitude = df['Amplitude'].values
-    
-    # get the time values
-    times = df['Time'].values
-    
-    # get the spectrogram
-    spectogram = tf.signal.stft(amplitude, frame_length=frame_length, frame_step=frame_step)
-    spectogram = tf.abs(spectogram)
-    spectogram = tf.expand_dims(spectogram, axis=2)
 
-    # plot the spectrogram
-    plt.figure(figsize=(10, 8))
-    plt.imshow(tf.transpose(spectogram)[0])
-    plt.xlabel('Time')
-    plt.ylabel('Frequency')
-    plt.colorbar()
-    plt.show()
-    
-    return spectogram

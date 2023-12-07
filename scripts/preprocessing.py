@@ -405,30 +405,27 @@ def getTrainAndTestData(df, train_size):
 
     return df_train, df_test
 
-def plot_data(df, num_samples_plot=5000, color='blue', label='Raw'):
+def plotTimeDomain(df, num_samples_plot=5000, label='Raw'):
     """
-    Plot the raw and filtered data
+    Plot the data in the time domain
     
     :param df: dataframe
     :param num_samples_plot: number of samples to plot
-    :param color: color
     :param label: label
     
     :return: None
     """
-    # plot the data
-    plt.plot(df['Time'][:num_samples_plot],
-             df['Amplitude'][:num_samples_plot],
-             color=color,
-             label=label)
 
-    # add a legend to the graph
-    plt.legend()
-    # add a title to the graph
-    plt.title('Raw vs Filtered Data')
-    # add labels to the x and y axes
+    amplitudes = df['Amplitude'].values
+    time = df['Time'].values
+
+    # plot the data
+    plt.plot(time[:num_samples_plot], amplitudes[:num_samples_plot], label=label)
     plt.xlabel('Time (s)')
     plt.ylabel('Amplitude')
+    plt.legend()
+    plt.title('Time Domain')
+    
 
 def plotFrequencyDomain(df, sampling_freq=25000, num_samples_plot=5000, label='Raw'):
     """

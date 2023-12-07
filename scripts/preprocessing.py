@@ -62,7 +62,7 @@ def savePredictions(filepath, predictions, predictions_indicies):
     # save the predictions as a .mat file
     sio.savemat(filepath, {'Class': predictions, 'Index': predictions_indicies})
 
-def preprocessTrainingData(d, index, label, cutoff_freq=1000, sampling_freq=25000, window_size=100, zero_bias_coefficient=8):
+def preprocessTrainingData(d, index, label, low_cutoff_freq=1000, high_cutoff_freq=1000, sampling_freq=25000, window_size=100, zero_bias_coefficient=8):
     """
     Preprocess the data
     
@@ -70,7 +70,8 @@ def preprocessTrainingData(d, index, label, cutoff_freq=1000, sampling_freq=2500
     :param index: the locations in the recording of the start of each spike
     :param label: the class of each spike (1, 2, 3, 4, or 5), i.e. the type of
                     neuron that fired it
-    :param cutoff_freq: cutoff frequency
+    :param low_cutoff_freq: cutoff frequency for the low pass filter
+    :param high_cutoff_freq: cutoff frequency for the high pass filter
     :param sampling_freq: sampling frequency
     :param window_size: window size
     :param zero_bias_coefficient: If the coefficient is 1, then the number of
@@ -95,8 +96,11 @@ def preprocessTrainingData(d, index, label, cutoff_freq=1000, sampling_freq=2500
     for SNR in range(0, 101, 20):
         # add noise to the data
         df_noise = addNoise(df_norm, SNR)
-        # filter the data
-        df_filtered = lowPassFilter(df_noise, cutoff_freq, sampling_freq)
+        # filter the data. Filtering can cause the amplitudes to decrease in
+        # power so the data is normalized again.
+        df_low_filtered = lowPassFilter(df_noise, low_cutoff_freq, sampling_freq)
+        df_high_filtered = highPassFilter(df_low_filtered, high_cutoff_freq, sampling_freq)
+        df_filtered = normalizeAmplitudes(df_high_filtered)
         # Split the data into windows
         df_windows = createWindows(df_filtered, window_size)
         # Unbias the data
@@ -112,12 +116,13 @@ def preprocessTrainingData(d, index, label, cutoff_freq=1000, sampling_freq=2500
 
     return df
 
-def preprocessPredictionData(d, cutoff_freq=1000, sampling_freq=25000, window_size=100):
+def preprocessPredictionData(d, low_cutoff_freq=1000, high_cutoff_freq=1000, sampling_freq=25000, window_size=100):
     """
     Preprocess the data
     
     :param d: the raw time domain recording
-    :param cutoff_freq: cutoff frequency
+    :param low_cutoff_freq: cutoff frequency for the low pass filter
+    :param high_cutoff_freq: cutoff frequency for the high pass filter
     :param sampling_freq: sampling frequency
     :param window_size: window size
 
@@ -128,8 +133,11 @@ def preprocessPredictionData(d, cutoff_freq=1000, sampling_freq=25000, window_si
     # normalize the data
     df_norm = normalizeAmplitudes(df)
 
-    # filter the data
-    df_filtered = lowPassFilter(df_norm, cutoff_freq, sampling_freq)
+    # filter the data. Filtering can cause the amplitudes to decrease in
+    # power so the data is normalized again.
+    df_low_filtered = lowPassFilter(df_norm, low_cutoff_freq, sampling_freq)
+    df_high_filtered = highPassFilter(df_low_filtered, high_cutoff_freq, sampling_freq)
+    df_filtered = normalizeAmplitudes(df_high_filtered)
 
     # Split the data into windows
     df_windows = createWindows(df_filtered, window_size)
@@ -426,7 +434,6 @@ def plotTimeDomain(df, num_samples_plot=5000, label='Raw'):
     plt.legend()
     plt.title('Time Domain')
     
-
 def plotFrequencyDomain(df, sampling_freq=25000, num_samples_plot=5000, label='Raw'):
     """
     PLot the data in the frequency domain

@@ -14,10 +14,11 @@ def main():
         'SNR': 80,
         'filter_type': 'lowpass',
         'batch_size': 100,
-        'window_size': 50,
-        'zero_bias_coefficient': 16,
+        'window_size': 40,
+        'zero_bias_coefficient': 1,
         'epochs': 1000,
-        'cutoff_freq': 1000,
+        'low_cutoff_freq': 200,
+        'high_cutoff_freq': 50,
         'sampling_freq': 25000,
         'prediction': True,
         'training_partition': 0.8,
@@ -53,16 +54,7 @@ def run(d, index, label, **kwargs):
     :param d: data
     :param index: index
     :param label: label
-    :param kwargs: keyword arguments. Possible keyword arguments are:
-        batch_size - the number of samples per gradient update
-        window_size - the number of samples per window
-        epochs - the number of epochs to train the model
-        cutoff_freq - the cutoff frequency of the low pass filter
-        sampling_freq - frequency at which the data was sampled
-        training_partition - the amout of data to use for training the model.
-        prediction - if True, then predict the labels of the data in D2.mat,
-                        D3.mat, D4.mat, D5.mat, and D6.mat. The predictions
-                        will be saved in the results directory.
+    :param kwargs: keyword arguments.
 
     :return:
         loss - a list of the loss values for each epoch. Loss is the error
@@ -76,7 +68,8 @@ def run(d, index, label, **kwargs):
         d,
         index,
         label,
-        kwargs['cutoff_freq'],
+        kwargs['low_cutoff_freq'],
+        kwargs['high_cutoff_freq'],
         kwargs['sampling_freq'],
         kwargs['window_size'],
         kwargs['zero_bias_coefficient'],
@@ -99,7 +92,7 @@ def run(d, index, label, **kwargs):
 
     # Predict the labels of the data in D2.mat, D3.mat, D4.mat, D5.mat, and
     # D6.mat
-    predict(kwargs['window_size'], kwargs['cutoff_freq'], kwargs['sampling_freq'], kwargs['prediction'], model)
+    predict(kwargs['window_size'], kwargs['low_cutoff_freq'], kwargs['high_cutoff_freq'], kwargs['sampling_freq'], kwargs['prediction'], model)
 
     return loss, accuracy, precision, recall
 
@@ -115,7 +108,7 @@ def test(
         return model.test(df_test)
 
 
-def predict(window_size, cutoff_freq, sampling_freq, prediction, model):
+def predict(window_size, low_cutoff_freq, high_cutoff_freq, sampling_freq, prediction, model):
 
     # If prediction is True, then we want to predict the labels of the data in
     # D2.mat, D3.mat, D4.mat, D5.mat, and D6.mat. The predictions will be saved
@@ -129,7 +122,7 @@ def predict(window_size, cutoff_freq, sampling_freq, prediction, model):
 
             # Preprocess the data
             df_prediction = pp.preprocessPredictionData(
-                d, cutoff_freq, sampling_freq, window_size)
+                d, low_cutoff_freq, high_cutoff_freq, sampling_freq, window_size)
 
             # Make the predictions
             predictions, prediction_indicies = model.predict(df_prediction)

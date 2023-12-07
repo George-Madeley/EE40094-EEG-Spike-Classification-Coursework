@@ -257,6 +257,32 @@ def lowPassFilter(df, cutoff_freq, sampling_freq, order=5):
 
     return df_filtered
 
+def highPassFilter(df, cutoff_freq, sampling_freq, order=5):
+    """
+    High pass filter the data
+    
+    :param df: dataframe
+    :param cutoff_freq: cutoff frequency
+    :param sampling_freq: sampling frequency
+    :param order: order
+
+    :return: dataframe
+    """
+
+    # create a copy of the df
+    df_filtered = df.copy()
+
+    # Create the filter
+    b, a = butter(order, cutoff_freq, fs=sampling_freq, btype='high', analog=False)
+
+    # apply the filter to the amplitude column
+    df_filtered['Amplitude'] = lfilter(b, a, df_filtered['Amplitude'])
+
+    # Accommodate for the phase shift caused by the filter
+    df_filtered['Amplitude'] = np.roll(df_filtered['Amplitude'], -2 * order)
+
+    return df_filtered
+
 def createWindows(df, window_size):
     """
     Create windows of the data. This is done by creating a dataframe with the
@@ -404,7 +430,7 @@ def plot_data(df, num_samples_plot=5000, color='blue', label='Raw'):
     plt.xlabel('Time (s)')
     plt.ylabel('Amplitude')
 
-def plotFrequencyDomain(df, sampling_freq=25000, num_samples_plot=5000):
+def plotFrequencyDomain(df, sampling_freq=25000, num_samples_plot=5000, label='Raw'):
     """
     PLot the data in the frequency domain
     
@@ -432,7 +458,7 @@ def plotFrequencyDomain(df, sampling_freq=25000, num_samples_plot=5000):
     fft[0] = 0
 
     # plot the data
-    plt.plot(freq[:num_samples_plot], np.abs(fft)[:num_samples_plot])
+    plt.plot(freq[:num_samples_plot], np.abs(fft)[:num_samples_plot], label=label)
 
     # add a legend to the graph
     plt.legend()

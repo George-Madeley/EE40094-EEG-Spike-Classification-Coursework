@@ -106,6 +106,26 @@ def preprocessTrainingData(d, index, label, low_cutoff_freq=1000, high_cutoff_fr
         df_filtered = normalizeAmplitudes(df_high_filtered)
         # Split the data into windows
         df_windows = createWindows(df_filtered, window_size)
+        # There are a bunch of duplicate rows in the dataframe. We need to remove
+        # these duplicates to get the windows around the peaks. To do this, we
+        # remove the rows where the label is 0.
+        df_windows = df_windows[df_windows['Label'] != 0]
+
+
+        # group the data by the label column
+        grouped = df_windows.groupby('Label')
+        # for each group, plot the first 10 windows
+        for label, group in grouped:
+            # get the first 10 windows
+            group = group.iloc[:10, :]
+            # for each window, plot the amplitude column
+            for row in group.iterrows():
+                # get the amplitude column
+                amplitude = row[1]['Amplitude0':]
+                # plot the amplitude column
+                plt.plot(amplitude)
+
+
         # Unbias the data
         df_unbias = unbiasData(df_windows, zero_bias_coefficient)
         # add the dataframe to the list of dataframes
@@ -144,6 +164,14 @@ def preprocessPredictionData(d, low_cutoff_freq=1000, high_cutoff_freq=1000, sam
 
     # Split the data into windows
     df_windows = createWindows(df_filtered, window_size)
+    # There are a bunch of duplicate rows in the dataframe. We need to remove
+    # these duplicates to get the windows around the peaks. To do this, we
+    # remove the rows where peakIndex is 0.
+    df_windows = df_windows[df_windows['PeakIndex'] != 0]
+    # We then drop the PeakIndex column
+    df_windows = df_windows.drop(columns=['PeakIndex'])
+    # We then remove any remaining duplicates
+    df_windows = df_windows.drop_duplicates()
 
     return df_windows
 
@@ -299,13 +327,9 @@ def highPassFilter(df, cutoff_freq, sampling_freq, order=5):
 
     return df_filtered
 
-def createWindows(df, window_size):
+def createWindows(df, window_size, peak_threshold=0):
     """
-    Create windows of the data. This is done by creating a dataframe with the
-    amplitude column duplicated window_size times. Each amplitude column is
-    shifted by -1. The first column is not shifted and the last column is
-    shifted by -window_size. Therefore, each row in the dataframe contains the
-    amplitude values for window_size consecutive samples.
+    Create windows around the peaks in the data.
     
     :param df: dataframe
     :param window_size: window size
@@ -313,19 +337,107 @@ def createWindows(df, window_size):
     :return: dataframe
     """
 
-    # create a dataframe with the amplitude column duplicated window_size times
-    # and include a column for the time and label values.
-    df_windows = pd.DataFrame()
-    for i in range(window_size):
-        df_windows['Amplitude' + str(i)] = df['Amplitude'].shift(-i, fill_value=0)
+    # We are going to create windows around the peaks. The radius of the windows
+    # is window_size. To find these peaks, we will create a search window from
+    # the index to the index + window_size. We will then find the index of the
+    # first peak in that window which is larger than the peak threshold. We will
+    # then create a window around that peak. 
+
+    # Get the indicies of the df
+    indicies = df.index
+
+    # Create a dataframe with the amplitude column duplicated window_size and
+    # shifted by 1. This creates the search windows for the peaks.
+    df_windows = pd.concat([
+        df['Amplitude'].shift(-i) for i in range(window_size)
+    ], axis=1)
     
-    # add the time and label columns to the dataframe
-    column_names = []
-    for column_name in df.columns:
-        if column_name != 'Amplitude':
-            column_names.append(column_name)
-    # concat the df_windows and df[column_names] dataframes
-    df_windows = pd.concat([df_windows, df[column_names]], axis=1)
+    # When we shift the amplitude column, we get a bunch of NaN values. We need
+    # to fill these values with the last value in the amplitude column. We do
+    # this by using the fill_value parameter. This ensures that no peaks are
+    # detected beyond the amplitude column.
+    df_windows = df_windows.fillna(method='ffill', axis=1)
+
+    # Rename the 'Amplitude' columns to i where i is the amount the column was 
+    # shifted by
+    df_windows.columns = [str(i) for i in range(window_size)]
+
+    # Create a column which will store the index of the peak. We will use this
+    # column to create the windows around the peaks. We will then drop this
+    # column. The initial value of the column will be 0. If a peak is found,
+    # then the value will be set to the index of the peak and the window will be
+    # created around the peak. Else, the value will remain 0 and the window will
+    # be created around the index or can be dropped.
+    df_windows['PeakIndex'] = 0
+
+    # Find the first peak in the window that is larger than the peak threshold.
+    # To do this, loop over each row in the dataframe. For each row, duplicate
+    # it twice and shift the first duplicate by -1 and the second duplicate by
+    # 1. We then find the index of the row where the amplitude is greater than
+    # the amplitude of the previous row and the amplitude of the next row and is
+    # greater than the peak threshold.
+    for row in df_windows.iterrows():
+        # get the index of the row
+        index = row[0]
+        # get the row values without peakIndex value.
+        row = row[1][:-1]
+        # Convert row to a numpy array
+        row = row.values
+        # Shift the row by -1 and 1.
+        row_next = np.roll(row, -1)
+        row_prev = np.roll(row, 1)
+        # Set the first value of row_prev to the first value of row and the last
+        # value of row_next to the last value of row. We do this because we do
+        # not want to unintentionally find a peak at the start or end of the
+        # window.
+        row_prev[0] = row[0]
+        row_next[-1] = row[-1]
+
+        # Get a list of indicies where the amplitude is greater than the
+        # amplitude of the previous row and the amplitude of the next row and is
+        # greater than the peak threshold.
+        peak_indicies = np.where((row > row_prev) & (row > row_next) & (row > peak_threshold))[0]
+
+        # If there are no peaks, then continue to the next row
+        if len(peak_indicies) == 0:
+            continue
+
+        # Get the first peak index
+        peak_index = peak_indicies[0]
+
+        # Store the index of the peak in the PeakIndex column
+        df_windows.loc[index, 'PeakIndex'] = peak_index
+
+
+    # Perform the element wise addition of the indicies and the peak indicies.
+    # This gets us the indicies of the peaks relative to the dataframe rather
+    # than the search window.
+    relative_peak_indicies = indicies + df_windows['PeakIndex']
+
+    # Create a dataframe with the amplitude column duplicated window_size times
+    # ranging from -window_size to window_size.
+    df_windows = pd.concat([
+        df['Amplitude'].shift(i, fill_value=0) for i in range(-window_size, window_size)
+    ], axis=1)
+
+    # Rename the 'Amplitude' columns
+    df_windows.columns = [f'Amplitude{i}' for i in range(2 * window_size)]
+
+    # Only keep the rows where the center of the window is a peak. We do this by
+    # getting the rows where the index is in the relative_peak_indicies array.
+    df_windows = df_windows.loc[relative_peak_indicies, :]
+
+    # Add the columns that do not have the name 'Amplitude' to the dataframe
+    # df_windows such as the Time column and the one-hot encoded label columns.
+    df_windows = pd.concat([df_windows, df[df.columns.difference(['Amplitude'])]], axis=1)
+
+    # df_windows is filled with duplicate rows. We need to remove the duplicates
+    # to get the windows around the peaks. However, which ones to remove is
+    # dependent on whether the data is used for training or predicting. If the
+    # data is used for training, then we want to remove the rows where the label
+    # is 0. If the data is used for predicting, then we want to remove the rows
+    # where PeakIndex is 0 and then remove any remaining duplicates. This is
+    # because the data used for predicting does not have a label column.
 
     return df_windows
 

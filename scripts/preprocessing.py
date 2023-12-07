@@ -404,4 +404,43 @@ def plot_data(df, num_samples_plot=5000, color='blue', label='Raw'):
     plt.xlabel('Time (s)')
     plt.ylabel('Amplitude')
 
+def plotFrequencyDomain(df, sampling_freq=25000, num_samples_plot=5000):
+    """
+    PLot the data in the frequency domain
+    
+    :param df: dataframe
+    :param sampling_freq: sampling frequency
+    
+    :return: None
+    """
+
+    # get the number of samples
+    n = len(df['Amplitude'])
+
+    # get the fft of the amplitude column
+    fft = np.fft.fft(df['Amplitude'])
+
+    # get the frequency values
+    freq = np.fft.fftfreq(n, 1/sampling_freq)
+
+    # frequency values are symmetrical, so we only need to plot the first half
+    # of the values. In addition, we only need to plot the positive values.
+    freq = freq[:n//2]
+    fft = fft[:n//2]
+
+    # remove the DC component of the fft
+    fft[0] = 0
+
+    # plot the data
+    plt.plot(freq[:num_samples_plot], np.abs(fft)[:num_samples_plot])
+
+    # add a legend to the graph
+    plt.legend()
+    # add a title to the graph
+    plt.title('Frequency Domain')
+    # add labels to the x and y axes
+    plt.xlabel('Frequency (Hz)')
+    plt.ylabel('Amplitude')
+
+    plt.plot()
 

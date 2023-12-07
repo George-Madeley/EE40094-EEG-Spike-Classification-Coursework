@@ -12,13 +12,12 @@ def main():
 
     kwargs = {
         'SNR': 80,
-        'filter_type': 'lowpass',
         'batch_size': 100,
-        'window_size': 40,
-        'zero_bias_coefficient': 1,
+        'window_size': 100,
+        'zero_bias_coefficient': 10,
         'epochs': 1000,
-        'low_cutoff_freq': 200,
-        'high_cutoff_freq': 50,
+        'low_cutoff_freq': 1000,
+        'high_cutoff_freq': 100,
         'sampling_freq': 25000,
         'prediction': True,
         'training_partition': 0.8,

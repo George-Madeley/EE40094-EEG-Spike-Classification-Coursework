@@ -22,6 +22,9 @@ filepaths = [
     './results/D6.mat'
 ]
 
+
+fig, ax = plt.subplots(ncols=3, nrows=2, figsize=(10, 5))
+
 for i,filepath in enumerate(filepaths):
     # Load the predictions
     data = sio.loadmat(filepath)
@@ -36,18 +39,16 @@ for i,filepath in enumerate(filepaths):
     # y-axis is the percentage. Each pair of bars should be adjacent to each
     # other. The left bar should be the actual percentage and the right bar
     # should be the predicted percentage.
-    x = np.arange(len(uniqueLabels))  # the label locations
-    width = 0.35  # the width of the bars
+    x = np.arange(len(uniqueLabels))
+    width = 0.35
 
-    fig, ax = plt.subplots(figsize=(10, 5))
-    rects1 = ax.bar(x - width/2, actualPercentages, width, label='Actual')
-    rects2 = ax.bar(x + width/2, predictionPercentages, width, label='Predicted')
+    ax[i // 3, i % 3].bar(x - width/2, actualPercentages, width, label='Actual')
+    ax[i // 3, i % 3].bar(x + width/2, predictionPercentages, width, label='Predicted')
 
-    # Add some text for labels, title and custom x-axis tick labels, etc.
-    ax.set_ylabel('Percentage (%)')
-    ax.set_title(f'Predicted vs Actual for D{i+2}')
-    ax.set_xticks(x)
-    ax.set_xticklabels([f'Class {i}' for i in uniqueLabels])
-    ax.legend()
-    plt.show()
+    ax[i // 3, i % 3].set_title(f'Class Counts for D{i+2}')
+    ax[i // 3, i % 3].set_xticks(x)
+    ax[i // 3, i % 3].set_xticklabels([f'Class {label}' for label in uniqueLabels])
+    ax[i // 3, i % 3].legend()
+
+plt.show()
     

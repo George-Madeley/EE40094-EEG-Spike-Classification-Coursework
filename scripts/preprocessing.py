@@ -116,10 +116,6 @@ def preprocessTrainingData(d, index, label, low_cutoff_freq=1000, high_cutoff_fr
         # one-hot encoded column for the label 0.
         df_windows = df_windows.drop(columns=['Label0'])
 
-        # We also need to remove any rows that do not contain a peak. To do this,
-        # we remove any rows where PeakIndex is 0.
-        df_windows = df_windows[df_windows['PeakIndex'] != 0]
-
         # plt.subplots(2, 3)
         # # group the rows by the label column
         # grouped = df_windows.groupby('Label')

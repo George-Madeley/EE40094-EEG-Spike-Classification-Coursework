@@ -140,7 +140,7 @@ class NeuralNetwork(IArtificialIntelligence):
         predictions = self.model.predict(amplitudes)
 
         # Find the class with the highest probability
-        prediction_labels = predictions.argmax(axis=1)
+        prediction_labels = predictions.argmax(axis=1) + 1
 
         # Get the indicies where the predictions are not 0
         prediction_indicies = np.where(prediction_labels != 0)[0]

@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import scipy.io as sio
+import scipy.signal as sg
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from scipy.signal import butter, lfilter
@@ -114,6 +115,10 @@ def preprocessTrainingData(d, index, label, low_cutoff_freq=1000, high_cutoff_fr
         # one-hot encoded column for the label 0.
         df_windows = df_windows.drop(columns=['Label0'])
 
+        # We also need to remove any rows that do not contain a peak. To do this,
+        # we remove any rows where PeakIndex is 0.
+        df_windows = df_windows[df_windows['PeakIndex'] != 0]
+
         plt.subplots(2, 3)
         # group the rows by the label column
         grouped = df_windows.groupby('Label')
@@ -124,7 +129,7 @@ def preprocessTrainingData(d, index, label, low_cutoff_freq=1000, high_cutoff_fr
             plt.subplot(2, 3, i + 1)
             # plot the amplitudes
             plt.plot(np.arange(-window_size, window_size), amplitudes[:50, :].T, label=f'Class {label}')
-            plt.xlabel('Time (ms)')
+            plt.xlabel('Window Index')
             plt.ylabel('Amplitude')
             plt.title(f'Class {label}')
         plt.show()
@@ -389,15 +394,15 @@ def createWindows(df, window_size, peak_threshold=0):
     # Create a copy of the df_windows dataframe and shift it by -1 and 1.
     df_windows_before = df_windows.copy()
     df_windows_after = df_windows.copy()
-    df_windows_before = df_windows_before.shift(1, fill_value=0)
-    df_windows_after = df_windows_after.shift(-1, fill_value=0)
+    df_windows_before = df_windows_before.shift(1, fill_value=0, axis=1)
+    df_windows_after = df_windows_after.shift(-1, fill_value=0, axis=1)
 
     # Set the first value of df_windows_before to the first value of df_windows
     # and the last value of df_windows_after to the last value of df_windows.
     # We do this because we do not want to unintentionally find a peak at the
     # start or end of the window.
-    df_windows_before.iloc[0, :] = df_windows.iloc[0, :]
-    df_windows_after.iloc[-1, :] = df_windows.iloc[-1, :]
+    df_windows_before.iloc[:, 0] = df_windows.iloc[:, 0]
+    df_windows_after.iloc[:, -1] = df_windows.iloc[:, -1]
 
     # Get a list of indicies where the amplitude is greater than the amplitude
     # of the previous row and the amplitude of the next row and is greater than

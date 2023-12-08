@@ -91,7 +91,7 @@ def run(d, index, label, **kwargs):
 
     # Predict the labels of the data in D2.mat, D3.mat, D4.mat, D5.mat, and
     # D6.mat
-    predict(kwargs['window_size'], kwargs['low_cutoff_freq'], kwargs['high_cutoff_freq'], kwargs['sampling_freq'], kwargs['prediction'], model)
+    predict(kwargs['window_size'], kwargs['sampling_freq'], kwargs['prediction'], model)
 
     return loss, accuracy, precision, recall
 
@@ -107,7 +107,7 @@ def test(
         return model.test(df_test)
 
 
-def predict(window_size, low_cutoff_freq, high_cutoff_freq, sampling_freq, prediction, model):
+def predict(window_size, sampling_freq, prediction, model):
 
     # If prediction is True, then we want to predict the labels of the data in
     # D2.mat, D3.mat, D4.mat, D5.mat, and D6.mat. The predictions will be saved
@@ -117,15 +117,23 @@ def predict(window_size, low_cutoff_freq, high_cutoff_freq, sampling_freq, predi
         # Create a list of the peak threshold values to use for each dataset
         peak_thresholds = [0.2, 0.23, 0.22, 0.33, 0.34]
 
+        # Create a list for the low- and high-pass cutoff frequencies
+        low_cutoff_freqs = [500, 500, 500, 500, 500]
+        high_cutoff_freqs = [100, 100, 100, 100, 100]
+
         for i in range(2, 7):
             print(f'Predicting D{i}...')
             # Load the data
             filepath = os.path.join('data', f'D{i}.mat')
             d = pp.loadPredictionData(filepath)
 
+            peak_threshold = peak_thresholds[i-2]
+            low_cutoff_freq = low_cutoff_freqs[i-2]
+            high_cutoff_freq = high_cutoff_freqs[i-2]
+
             # Preprocess the data
             df_prediction = pp.preprocessPredictionData(
-                d, low_cutoff_freq, high_cutoff_freq, sampling_freq, window_size, peak_thresholds[i-2])
+                d, low_cutoff_freq, high_cutoff_freq, sampling_freq, window_size, peak_threshold)
             
             # Print the number of rows in the dataframe
             print(f'Number of rows in D{i}.mat: {len(df_prediction)}')

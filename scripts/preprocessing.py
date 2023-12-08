@@ -390,9 +390,12 @@ def createWindows(df, window_size, peak_threshold=0):
         df_windows * 0
     )
 
+    # Get the absolute value of the highlight_peaks array.
+    highlight_peaks_abs = np.abs(highlight_peaks)
+
     # Sum the rows of the numpy array then return the index of the non-zero
     # values. This gives us the indicies of the rows where a peak was found.
-    peak_row_indicies = np.where(highlight_peaks.sum(axis=1) > 0)
+    peak_row_indicies = np.where(highlight_peaks_abs.sum(axis=1) > 0)
 
     # For each row that had a non-zero sum, get the index of the first value
     # that is bigger than 0. This is the index of the peak.

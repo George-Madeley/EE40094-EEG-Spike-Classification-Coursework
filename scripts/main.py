@@ -13,8 +13,8 @@ def main():
     kwargs = {
         'SNR': 80,
         'batch_size': 100,
-        'window_size': 100,
-        'zero_bias_coefficient': 10,
+        'window_size': 20,
+        'zero_bias_coefficient': 1,
         'epochs': 1000,
         'low_cutoff_freq': 1000,
         'high_cutoff_freq': 100,
@@ -81,7 +81,7 @@ def run(d, index, label, **kwargs):
     numOutputs = len(df['Label'].unique())
 
     # Create the model
-    model = ml.NeuralNetwork(kwargs['window_size'], numOutputs)
+    model = ml.NeuralNetwork(kwargs['window_size'] * 2, numOutputs)
 
     # Train the model
     model.train(df_train, kwargs['batch_size'], kwargs['epochs'])
@@ -121,7 +121,10 @@ def predict(window_size, low_cutoff_freq, high_cutoff_freq, sampling_freq, predi
 
             # Preprocess the data
             df_prediction = pp.preprocessPredictionData(
-                d, low_cutoff_freq, high_cutoff_freq, sampling_freq, window_size)
+                d, low_cutoff_freq, high_cutoff_freq, sampling_freq, window_size, peak_threshold=0.2)
+            
+            # Print the number of rows in the dataframe
+            print(f'Number of rows in D{i}.mat: {len(df_prediction)}')
 
             # Make the predictions
             predictions, prediction_indicies = model.predict(df_prediction)

@@ -13,7 +13,7 @@ def main():
     kwargs = {
         'SNR': 80,
         'batch_size': 100,
-        'window_size': 20,
+        'window_size': 50,
         'zero_bias_coefficient': 1,
         'epochs': 1000,
         'low_cutoff_freq': 1000,
@@ -115,11 +115,11 @@ def predict(window_size, sampling_freq, prediction, model):
     if prediction:
 
         # Create a list of the peak threshold values to use for each dataset
-        peak_thresholds = [0.2, 0.23, 0.22, 0.33, 0.34]
+        peak_thresholds = [0, 0, 0, 0, 0]
 
         # Create a list for the low- and high-pass cutoff frequencies
-        low_cutoff_freqs = [500, 500, 500, 500, 500]
-        high_cutoff_freqs = [100, 100, 100, 100, 100]
+        low_cutoff_freqs = [1000, 1000, 1000, 1000, 1000]
+        high_cutoff_freqs = [0, 0, 0, 0, 0]
 
         for i in range(2, 7):
             print(f'Predicting D{i}...')

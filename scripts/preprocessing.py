@@ -97,16 +97,17 @@ def preprocessTrainingData(d, index, label, low_cutoff_freq=1000, high_cutoff_fr
     low_noise = 20
     high_noise = 100
     step = int((high_noise - low_noise) / 5)
-    for SNR in range(low_noise, high_noise + 1, step):
+    for SNR in range(high_noise, low_noise - 1, -step):
         # add noise to the data
         df_noise = addNoise(df_norm, SNR)
         # filter the data. Filtering can cause the amplitudes to decrease in
         # power so the data is normalized again.
         df_low_filtered = lowPassFilter(df_noise, low_cutoff_freq, sampling_freq)
-        df_high_filtered = highPassFilter(df_low_filtered, high_cutoff_freq, sampling_freq)
-        df_filtered = normalizeAmplitudes(df_high_filtered)
+        # df_high_filtered = highPassFilter(df_low_filtered, high_cutoff_freq, sampling_freq)
+        df_filtered = normalizeAmplitudes(df_low_filtered)
         # Split the data into windows
         df_windows = createWindows(df_filtered, window_size)
+
         # There are a bunch of duplicate rows in the dataframe. We need to remove
         # these duplicates to get the windows around the peaks. To do this, we
         # remove the rows where the label is 0.
@@ -119,20 +120,20 @@ def preprocessTrainingData(d, index, label, low_cutoff_freq=1000, high_cutoff_fr
         # we remove any rows where PeakIndex is 0.
         df_windows = df_windows[df_windows['PeakIndex'] != 0]
 
-        plt.subplots(2, 3)
-        # group the rows by the label column
-        grouped = df_windows.groupby('Label')
-        # plot the first 20 windows for each label on the same graph
-        for i, (label, group) in enumerate(grouped):
-            # get the values in the amplitude columns
-            amplitudes = group.filter(regex='Amplitude\d+').values
-            plt.subplot(2, 3, i + 1)
-            # plot the amplitudes
-            plt.plot(np.arange(-window_size, window_size), amplitudes[:50, :].T, label=f'Class {label}')
-            plt.xlabel('Window Index')
-            plt.ylabel('Amplitude')
-            plt.title(f'Class {label}')
-        plt.show()
+        # plt.subplots(2, 3)
+        # # group the rows by the label column
+        # grouped = df_windows.groupby('Label')
+        # # plot the first 20 windows for each label on the same graph
+        # for i, (label, group) in enumerate(grouped):
+        #     # get the values in the amplitude columns
+        #     amplitudes = group.filter(regex='Amplitude\d+').values
+        #     plt.subplot(2, 3, i + 1)
+        #     # plot the amplitudes
+        #     plt.plot(np.arange(-window_size, window_size), amplitudes[:50, :].T, label=f'Class {label}')
+        #     plt.xlabel('Window Index')
+        #     plt.ylabel('Amplitude')
+        #     plt.title(f'Class {label}')
+        # plt.show()
 
 
         # Unbias the data
@@ -170,8 +171,8 @@ def preprocessPredictionData(d, low_cutoff_freq=1000, high_cutoff_freq=1000, sam
     # filter the data. Filtering can cause the amplitudes to decrease in
     # power so the data is normalized again.
     df_low_filtered = lowPassFilter(df_norm, low_cutoff_freq, sampling_freq)
-    df_high_filtered = highPassFilter(df_low_filtered, high_cutoff_freq, sampling_freq)
-    df_filtered = normalizeAmplitudes(df_high_filtered)
+    # df_high_filtered = highPassFilter(df_low_filtered, high_cutoff_freq, sampling_freq)
+    df_filtered = normalizeAmplitudes(df_low_filtered)
 
     # Split the data into windows
     df_windows = createWindows(df_filtered, window_size, peak_threshold=peak_threshold)

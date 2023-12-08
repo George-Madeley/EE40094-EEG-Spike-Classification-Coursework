@@ -75,7 +75,7 @@ class NeuralNetwork(IArtificialIntelligence):
         early_stopping = EarlyStopping(monitor='val_precision', patience=20, mode='max')
 
         # Train the model
-        self.model.fit(amplitudes, labels, batch_size=batch_size, epochs=epochs, verbose=2, validation_split=0.2, callbacks=[early_stopping])
+        self.model.fit(amplitudes, labels, batch_size=batch_size, epochs=epochs, verbose=1, validation_split=0.2, callbacks=[early_stopping])
 
     def test(self, df_test):
         """

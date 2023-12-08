@@ -25,12 +25,27 @@ filepaths = [
 
 fig, ax = plt.subplots(ncols=3, nrows=2, figsize=(10, 5))
 
+uniqueLabels = np.arange(1, 6)
+
 for i,filepath in enumerate(filepaths):
     # Load the predictions
     data = sio.loadmat(filepath)
     labels = data['Class']
 
-    uniqueLabels, predictedCounts = np.unique(labels, return_counts=True)
+    predictedLabels, predictedCounts = np.unique(labels, return_counts=True)
+
+    # Check if any of the labels are missing from the predictions. If so, add
+    # them to the predicted labels and set their counts to 0.
+    missingLabels = np.setdiff1d(uniqueLabels, predictedLabels)
+    if len(missingLabels) > 0:
+        predictedLabels = np.append(predictedLabels, missingLabels)
+        predictedCounts = np.append(predictedCounts, np.zeros(len(missingLabels)))
+
+    # Sort the labels and counts by the labels
+    sortedIndices = np.argsort(predictedLabels)
+    predictedLabels = predictedLabels[sortedIndices]
+    predictedCounts = predictedCounts[sortedIndices]
+
 
     predictionPercentages = predictedCounts / predictedCounts.sum() * 100
     actualPercentages = noTrueCounts[i] / noTrueCounts[i].sum() * 100
@@ -42,13 +57,13 @@ for i,filepath in enumerate(filepaths):
     x = np.arange(len(uniqueLabels))
     width = 0.35
 
-    ax[i // 3, i % 3].bar(x - width/2, actualPercentages, width, label='Actual')
-    ax[i // 3, i % 3].bar(x + width/2, predictionPercentages, width, label='Predicted')
-
-    ax[i // 3, i % 3].set_title(f'Class Counts for D{i+2}')
-    ax[i // 3, i % 3].set_xticks(x)
-    ax[i // 3, i % 3].set_xticklabels([f'Class {label}' for label in uniqueLabels])
-    ax[i // 3, i % 3].legend()
+    ax[i // 3][i % 3].bar(x - width / 2, actualPercentages, width, label='Actual')
+    ax[i // 3][i % 3].bar(x + width / 2, predictionPercentages, width, label='Predicted')
+    ax[i // 3][i % 3].set_xticks(x)
+    ax[i // 3][i % 3].set_xticklabels(uniqueLabels)
+    ax[i // 3][i % 3].set_title(f'D{i + 2}')
+    ax[i // 3][i % 3].set_ylabel('Percentage')
+    ax[i // 3][i % 3].legend()
 
 plt.show()
     

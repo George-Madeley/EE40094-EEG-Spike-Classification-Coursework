@@ -113,6 +113,10 @@ def predict(window_size, low_cutoff_freq, high_cutoff_freq, sampling_freq, predi
     # D2.mat, D3.mat, D4.mat, D5.mat, and D6.mat. The predictions will be saved
     # in the results directory.
     if prediction:
+
+        # Create a list of the peak threshold values to use for each dataset
+        peak_thresholds = [0.2, 0.23, 0.22, 0.33, 0.34]
+
         for i in range(2, 7):
             print(f'Predicting D{i}...')
             # Load the data
@@ -121,7 +125,7 @@ def predict(window_size, low_cutoff_freq, high_cutoff_freq, sampling_freq, predi
 
             # Preprocess the data
             df_prediction = pp.preprocessPredictionData(
-                d, low_cutoff_freq, high_cutoff_freq, sampling_freq, window_size, peak_threshold=0.2)
+                d, low_cutoff_freq, high_cutoff_freq, sampling_freq, window_size, peak_thresholds[i-2])
             
             # Print the number of rows in the dataframe
             print(f'Number of rows in D{i}.mat: {len(df_prediction)}')

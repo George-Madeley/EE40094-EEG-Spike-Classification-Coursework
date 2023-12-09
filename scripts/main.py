@@ -115,11 +115,11 @@ def predict(window_size, sampling_freq, prediction, model):
     if prediction:
 
         # Create a list of the peak threshold values to use for each dataset
-        peak_thresholds = [0, 0, 0, 0, 0]
+        peak_thresholds = [0.07, 0.13, 0.19, 0.31, 0.44]
 
         # Create a list for the low- and high-pass cutoff frequencies
         low_cutoff_freqs = [1000, 1000, 1000, 1000, 1000]
-        high_cutoff_freqs = [0, 0, 0, 0, 0]
+        high_cutoff_freqs = [100, 100, 100, 100, 100]
 
         for i in range(2, 7):
             print(f'Predicting D{i}...')

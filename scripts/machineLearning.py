@@ -138,10 +138,16 @@ class NeuralNetwork(IArtificialIntelligence):
         predictions = self.model.predict(amplitudes)
 
         # Find the class with the highest probability
-        prediction_labels = predictions.argmax(axis=1) + 1
+        prediction_labels = predictions.argmax(axis=1)
+
+        # Get the indicies of the predictions that are not 0
+        not_0_indicies = np.where(prediction_labels != 0)[0]
+
+        # get the labels of the predictions that are not 0
+        prediction_labels = prediction_labels[not_0_indicies]
 
         # Get the indicies of the predictions
-        prediction_indicies = df['RelativePeakIndex'].values
+        prediction_indicies = df['RelativePeakIndex'].values[not_0_indicies]
 
         return prediction_labels, prediction_indicies
     

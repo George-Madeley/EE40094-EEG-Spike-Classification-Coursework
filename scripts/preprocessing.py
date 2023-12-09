@@ -109,27 +109,51 @@ def preprocessTrainingData(d, index, label, low_cutoff_freq=1000, high_cutoff_fr
         df_windows = createWindows(df_filtered, window_size)
 
         # There are a bunch of duplicate rows in the dataframe. We need to remove
-        # these duplicates to get the windows around the peaks. To do this, we
-        # remove the rows where the label is 0.
-        df_windows = df_windows[df_windows['Label'] != 0]
-        # Because we do not want any row where the label is 0, we can drop the
-        # one-hot encoded column for the label 0.
-        df_windows = df_windows.drop(columns=['Label0'])
+        # these duplicates to get the windows around the peaks but we dont want
+        # to unintentionally remove the windows of labels that are not 0. To do
+        # we get the rows where the label is 0 and filter out the non peaks and
+        # duplicates.
 
-        # plt.subplots(2, 3)
-        # # group the rows by the label column
-        # grouped = df_windows.groupby('Label')
-        # # plot the first 20 windows for each label on the same graph
-        # for i, (label, group) in enumerate(grouped):
-        #     # get the values in the amplitude columns
-        #     amplitudes = group.filter(regex='Amplitude\d+').values
-        #     plt.subplot(2, 3, i + 1)
-        #     # plot the amplitudes
-        #     plt.plot(np.arange(-window_size, window_size), amplitudes[:50, :].T, label=f'Class {label}')
-        #     plt.xlabel('Window Index')
-        #     plt.ylabel('Amplitude')
-        #     plt.title(f'Class {label}')
-        # plt.show()
+        # Get dataframe where the label is 0 and where the label is not 0
+        df_null = df_windows[df_windows['Label'] == 0]
+        df_not_null = df_windows[df_windows['Label'] != 0]
+
+        # We then remove the rows where there is no peak. This is done by
+        # removing the rows where PeakIndex is 0.
+        df_null = df_null[df_null['PeakIndex'] != 0]
+        # We then drop the PeakIndex column
+        df_null = df_null.drop(columns=['PeakIndex'])
+        # We then remove any remaining duplicates specified by the
+        # 'RelativePeakIndex' column.
+        df_null = df_null.drop_duplicates(subset=['RelativePeakIndex'])
+
+        # There is still a chance that some null labels window are duplicates of
+        # the not null label windows. To remove these duplicates, we get the
+        # 'RelativePeakIndex' column of the df_not_null dataframe and remove any
+        # rows in the df_null dataframe that have the same value in the
+        # 'RelativePeakIndex' column.
+        relativePeakIndicies = df_not_null['RelativePeakIndex'].values
+        df_null = df_null[~df_null['RelativePeakIndex'].isin(relativePeakIndicies)]
+
+        # We then get the rows where the label is not 0, remove the PeakIndex
+        # column, and combine with the df_null dataframe.
+        df_not_null = df_not_null.drop(columns=['PeakIndex'])
+        df_windows = pd.concat([df_not_null, df_null])
+
+        plt.subplots(2, 3)
+        # group the rows by the label column
+        grouped = df_windows.groupby('Label')
+        # plot the first 20 windows for each label on the same graph
+        for i, (label, group) in enumerate(grouped):
+            # get the values in the amplitude columns
+            amplitudes = group.filter(regex='Amplitude\d+').values
+            plt.subplot(2, 3, i + 1)
+            # plot the amplitudes
+            plt.plot(np.arange(-window_size, window_size), amplitudes[:100, :].T, label=f'Class {label}')
+            plt.xlabel('Window Index')
+            plt.ylabel('Amplitude')
+            plt.title(f'Class {label}')
+        plt.show()
 
 
         # Unbias the data
@@ -356,6 +380,10 @@ def createWindows(df, window_size, peak_threshold=0):
     # Get the indicies of the df
     indicies = df.index
 
+    # if the label column exists, get the indicies where the label is not 0
+    if 'Label' in df.columns:
+        indicies_of_labels = indicies[df['Label'] != 0]
+
     # Create a dataframe with the amplitude column duplicated window_size and
     # shifted by 1. This creates the search windows for the peaks.
     df_windows = pd.concat([
@@ -420,8 +448,71 @@ def createWindows(df, window_size, peak_threshold=0):
     peak_row_indicies = np.where(highlight_peaks_abs.sum(axis=1) > 0)
 
     # For each row that had a non-zero sum, get the index of the first value
-    # that is bigger than 0. This is the index of the peak.
-    window_peak_indicies[peak_row_indicies] = np.argmax(highlight_peaks[peak_row_indicies] > 0, axis=1)
+    # that is bigger than 0. This is the index of the peak. However, this comes
+    # with an issue for the labelled data when there are overlaps in spikes.
+
+    # Take two labels, 1 and 2 and two peaks, A and B; both of which occur 
+    # after the labels but are close enough to be in the same window. Using the
+    # above method, the first peak found will be A. However, label 2 will be
+    # assigned to peak A as peak A is the first peak within the window of label
+    # 2.
+
+    # To fix this issue, we need to keep track of all the indicies of peak which
+    # have been assigned a label. If a peak has already been assigned a label,
+    # then we skip it and move on to the next peak within the search window. We
+    # repeat this process until we find a peak that has not been assigned a
+    # label. If all the peaks within the search window have been assigned a
+    # label, then we assign the last peak to the label.
+    if 'Label' in df.columns:
+        # Create an array to store the indicies of the peaks that have been
+        # assigned a label
+        indicies_with_labels = []
+        # Loop through the indicies of the rows where a peak was found
+        for i in peak_row_indicies[0]:
+            # Get the indicies of the peaks in the row relative to the search
+            # window
+            peak_row = highlight_peaks[i]
+            peak_row = peak_row > 0
+            peak_index = np.where(peak_row)[0]
+            # Check if the current index is in the index of a label.
+            if i in indicies_of_labels:
+                # Keep track of the number of peaks that have been assigned a
+                # label within the search window. We call this the error count.
+                # If the error count is equal to the number of peaks in the
+                # search window, then all the peaks within the search window
+                # have been assigned a different label. Therefore, we assign the
+                # last peak to the label. We could raise an error here but we
+                # would have to handle the error in the calling function.
+                # Ideally, the search window should be large enough so that this
+                # does not happen.
+                error_count = 0
+                for j in peak_index:
+                    # Get the index of the peak relative to the dataframe and
+                    # check if it has been assigned a label. If it has, then
+                    # increment the error count. Else, assign the label to the
+                    # peak and break out of the loop.
+                    relative_peak_index = j + i
+                    if relative_peak_index in indicies_with_labels:
+                        error_count += 1
+                        continue
+                    else:
+                        indicies_with_labels.append(relative_peak_index)
+                        window_peak_indicies[i] = j
+                        break
+                # If the error count is equal to the number of peaks in the
+                # search window, then all the peaks within the search window
+                # have been assigned a different label. Therefore, we assign the
+                # last peak to the label.
+                if error_count == len(peak_index):
+                    window_peak_indicies[i] = peak_index[-1]
+            # If the current index is not in the index of a label, then we
+            # assign the first peak.
+            else:
+                window_peak_indicies[i] = peak_index[0]
+    # If the label column does not exist, then we are dealing with prediction
+    # data and therefore do not need to worry about the issue above.
+    else:
+        window_peak_indicies[peak_row_indicies] = np.argmax(highlight_peaks[peak_row_indicies] > 0, axis=1)
 
     # Perform the element wise addition of the indicies and the peak indicies.
     # This gets us the indicies of the peaks relative to the dataframe rather

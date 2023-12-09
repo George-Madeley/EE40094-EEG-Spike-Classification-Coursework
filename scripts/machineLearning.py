@@ -6,7 +6,7 @@ from keras.callbacks import EarlyStopping
 
 import numpy as np
 import tensorflow as tf
-import matplotlib.pyplot as plt
+import pandas as pd
 from scipy.ndimage.filters import maximum_filter
 
 from IArtificialIntelligence import IArtificialIntelligence
@@ -115,11 +115,12 @@ class NeuralNetwork(IArtificialIntelligence):
 
         return loss, accuracy, precision, recall
     
-    def predict(self, df):
+    def predict(self, df, peak_threshold=0):
         """
         Predict the class of each window
 
         :param df: dataframe
+        :param peak_threshold: peak threshold
 
         :return: predictions, predictions_indicies
         """
@@ -140,14 +141,19 @@ class NeuralNetwork(IArtificialIntelligence):
         # Find the class with the highest probability
         prediction_labels = predictions.argmax(axis=1)
 
-        # Get the indicies of the predictions that are not 0
-        not_0_indicies = np.where(prediction_labels != 0)[0]
+        # Create a dataframe of the predictions
+        df_predictions = df.copy()
+        df_predictions['Label'] = prediction_labels
 
-        # get the labels of the predictions that are not 0
-        prediction_labels = prediction_labels[not_0_indicies]
+        # Filter out the windows that are labelled as 0
+        df_predictions = df_predictions[df_predictions['Label'] != 0]
+
+        # Filter out the windows where the height is less than the peak threshold
+        df_predictions = df_predictions[df_predictions['Height'] > peak_threshold]
 
         # Get the indicies of the predictions
-        prediction_indicies = df['RelativePeakIndex'].values[not_0_indicies]
+        prediction_indicies = df_predictions.index.values
+        prediction_labels = df_predictions['Label'].values
 
         return prediction_labels, prediction_indicies
     

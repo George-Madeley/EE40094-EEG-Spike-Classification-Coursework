@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
 import scipy.io as sio
-import scipy.signal as sg
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from scipy.signal import butter, lfilter
@@ -105,56 +104,14 @@ def preprocessTrainingData(d, index, label, low_cutoff_freq=1000, high_cutoff_fr
         # Split the data into windows
         df_windows = createWindows(df_filtered, window_size)
 
-        # There are a bunch of duplicate rows in the dataframe. We need to remove
-        # these duplicates to get the windows around the peaks but we dont want
-        # to unintentionally remove the windows of labels that are not 0. To do
-        # we get the rows where the label is 0 and filter out the non peaks and
-        # duplicates.
+        df_noDuplicates = filterDuplicates(df_windows)
 
-        # Get dataframe where the label is 0 and where the label is not 0
-        df_null = df_windows[df_windows['Label'] == 0]
-        df_not_null = df_windows[df_windows['Label'] != 0]
+        df_sorted = sortWindows(df_noDuplicates, window_size)
 
-        # We then remove the rows where there is no peak. This is done by
-        # removing the rows where PeakIndex is 0.
-        df_null = df_null[df_null['PeakIndex'] != 0]
-        # We then drop the PeakIndex column
-        df_null = df_null.drop(columns=['PeakIndex'])
-        # We then remove any remaining duplicates specified by the
-        # 'RelativePeakIndex' column.
-        df_null = df_null.drop_duplicates(subset=['RelativePeakIndex'])
-
-        # There is still a chance that some null labels window are duplicates of
-        # the not null label windows. To remove these duplicates, we get the
-        # 'RelativePeakIndex' column of the df_not_null dataframe and remove any
-        # rows in the df_null dataframe that have the same value in the
-        # 'RelativePeakIndex' column.
-        relativePeakIndicies = df_not_null['RelativePeakIndex'].values
-        df_null = df_null[~df_null['RelativePeakIndex'].isin(relativePeakIndicies)]
-
-        # We then get the rows where the label is not 0, remove the PeakIndex
-        # column, and combine with the df_null dataframe.
-        df_not_null = df_not_null.drop(columns=['PeakIndex'])
-        df_windows = pd.concat([df_not_null, df_null])
-
-        plt.subplots(2, 3)
-        # group the rows by the label column
-        grouped = df_windows.groupby('Label')
-        # plot the first 20 windows for each label on the same graph
-        for i, (label, group) in enumerate(grouped):
-            # get the values in the amplitude columns
-            amplitudes = group.filter(regex='Amplitude\d+').values
-            plt.subplot(2, 3, i + 1)
-            # plot the amplitudes
-            plt.plot(np.arange(-window_size, window_size), amplitudes[:100, :].T, label=f'Class {label}')
-            plt.xlabel('Window Index')
-            plt.ylabel('Amplitude')
-            plt.title(f'Class {label}')
-        plt.show()
-
+        plotWindows(df_sorted, window_size)
 
         # Unbias the data
-        df_unbias = unbiasData(df_windows)
+        df_unbias = unbiasData(df_sorted)
 
         # add the dataframe to the list of dataframes
         dataFrames.append(df_unbias)
@@ -167,7 +124,7 @@ def preprocessTrainingData(d, index, label, low_cutoff_freq=1000, high_cutoff_fr
 
     return df
 
-def preprocessPredictionData(d, low_cutoff_freq=1000, high_cutoff_freq=1000, sampling_freq=25000, window_size=100, peak_threshold=0):
+def preprocessPredictionData(d, low_cutoff_freq=1000, high_cutoff_freq=1000, sampling_freq=25000, window_size=100):
     """
     Preprocess the data
     
@@ -176,7 +133,6 @@ def preprocessPredictionData(d, low_cutoff_freq=1000, high_cutoff_freq=1000, sam
     :param high_cutoff_freq: cutoff frequency for the high pass filter
     :param sampling_freq: sampling frequency
     :param window_size: window size
-    :param peak_threshold: peak threshold
 
     :return: df
     """
@@ -192,7 +148,7 @@ def preprocessPredictionData(d, low_cutoff_freq=1000, high_cutoff_freq=1000, sam
     df_filtered = normalizeAmplitudes(df_low_filtered)
 
     # Split the data into windows
-    df_windows = createWindows(df_filtered, window_size, peak_threshold=peak_threshold)
+    df_windows = createWindows(df_filtered, window_size)
 
     # There are a bunch of duplicate rows in the dataframe. We need to remove
     # these duplicates to get the windows around the peaks. To do this, we
@@ -204,7 +160,10 @@ def preprocessPredictionData(d, low_cutoff_freq=1000, high_cutoff_freq=1000, sam
     # 'RelativePeakIndex' column.
     df_windows = df_windows.drop_duplicates(subset=['RelativePeakIndex'])
 
-    return df_windows
+    # Sort the windows by the amplitude of the peak relative to the window.
+    df_sorted = sortWindows(df_windows, window_size)
+
+    return df_sorted
 
 def createDataFrame(d, index=None, label=None, sampling_freq=25000):
     """
@@ -353,7 +312,7 @@ def highPassFilter(df, cutoff_freq, sampling_freq, order=5):
 
     return df_filtered
 
-def createWindows(df, window_size, peak_threshold=0):
+def createWindows(df, window_size):
     """
     Create windows around the peaks in the data.
     
@@ -366,8 +325,7 @@ def createWindows(df, window_size, peak_threshold=0):
     # We are going to create windows around the peaks. The radius of the windows
     # is window_size. To find these peaks, we will create a search window from
     # the index to the index + window_size. We will then find the index of the
-    # first peak in that window which is larger than the peak threshold. We will
-    # then create a window around that peak. 
+    # first peak in that window. We will then create a window around that peak. 
 
     # Get the indicies of the df
     indicies = df.index
@@ -403,8 +361,7 @@ def createWindows(df, window_size, peak_threshold=0):
     # Find the first peak in the window that is larger than the peak threshold.
     # To do this, we duplicate the amplitude columns and shift them by -1 and 1.
     # We then find the indicies where the amplitude is greater than the amplitude
-    # of the previous row and the amplitude of the next row and is greater than
-    # the peak threshold. We then get the first index of the indicies. This is
+    # of the previous row. We then get the first index of the indicies. This is
     # the index of the first peak in the window. We then store this index in the
     # PeakIndex column.
 
@@ -426,8 +383,7 @@ def createWindows(df, window_size, peak_threshold=0):
     # the peak threshold.
     highlight_peaks = np.where(
         (df_windows > df_windows_before) &
-        (df_windows > df_windows_after) &
-        (df_windows > peak_threshold),
+        (df_windows > df_windows_after),
         df_windows,
         df_windows * 0
     )
@@ -437,7 +393,7 @@ def createWindows(df, window_size, peak_threshold=0):
 
     # Sum the rows of the numpy array then return the index of the non-zero
     # values. This gives us the indicies of the rows where a peak was found.
-    peak_row_indicies = np.where(highlight_peaks_abs.sum(axis=1) > 0)
+    peak_row_indicies = np.where(highlight_peaks_abs.sum(axis=1) > 0)[0]
 
     # For each row that had a non-zero sum, get the index of the first value
     # that is bigger than 0. This is the index of the peak. However, this comes
@@ -460,14 +416,13 @@ def createWindows(df, window_size, peak_threshold=0):
         # assigned a label
         indicies_with_labels = []
         # Loop through the indicies of the rows where a peak was found
-        for i in peak_row_indicies[0]:
+        for peak_row_index in peak_row_indicies:
             # Get the indicies of the peaks in the row relative to the search
             # window
-            peak_row = highlight_peaks[i]
-            peak_row = peak_row > 0
-            peak_index = np.where(peak_row)[0]
+            peak_row = np.abs(highlight_peaks[peak_row_index])
+            peak_col_indicies = np.where(peak_row > 0)[0]
             # Check if the current index is in the index of a label.
-            if i in indicies_of_labels:
+            if peak_row_index in indicies_of_labels:
                 # Keep track of the number of peaks that have been assigned a
                 # label within the search window. We call this the error count.
                 # If the error count is equal to the number of peaks in the
@@ -478,29 +433,29 @@ def createWindows(df, window_size, peak_threshold=0):
                 # Ideally, the search window should be large enough so that this
                 # does not happen.
                 error_count = 0
-                for j in peak_index:
+                for peak_col_index in peak_col_indicies:
                     # Get the index of the peak relative to the dataframe and
                     # check if it has been assigned a label. If it has, then
                     # increment the error count. Else, assign the label to the
                     # peak and break out of the loop.
-                    relative_peak_index = j + i
+                    relative_peak_index = peak_col_index + peak_row_index
                     if relative_peak_index in indicies_with_labels:
                         error_count += 1
                         continue
                     else:
                         indicies_with_labels.append(relative_peak_index)
-                        window_peak_indicies[i] = j
+                        window_peak_indicies[peak_row_index] = peak_col_index
                         break
                 # If the error count is equal to the number of peaks in the
                 # search window, then all the peaks within the search window
                 # have been assigned a different label. Therefore, we assign the
                 # last peak to the label.
-                if error_count == len(peak_index):
-                    window_peak_indicies[i] = peak_index[-1]
+                if error_count == len(peak_col_indicies):
+                    window_peak_indicies[peak_row_index] = peak_col_indicies[-1]
             # If the current index is not in the index of a label, then we
             # assign the first peak.
             else:
-                window_peak_indicies[i] = peak_index[0]
+                window_peak_indicies[peak_row_index] = peak_col_indicies[0]
     # If the label column does not exist, then we are dealing with prediction
     # data and therefore do not need to worry about the issue above.
     else:
@@ -519,7 +474,7 @@ def createWindows(df, window_size, peak_threshold=0):
     # by -window_size to window_size. This creates the windows around the
     # indicies
     df_windows = pd.concat([
-        df['Amplitude'].shift(i, fill_value=0) for i in range(-window_size, window_size)
+        df['Amplitude'].shift(i, fill_value=0) for i in range(window_size, -window_size, -1)
     ], axis=1)
 
     # Rename the 'Amplitude' columns
@@ -554,6 +509,76 @@ def createWindows(df, window_size, peak_threshold=0):
     # column.
 
     return df_windows
+
+def filterDuplicates(df_windows):
+    """
+    Filter the duplicates in the dataframe.
+    
+    :param df_windows: dataframe
+    
+    :return: dataframe
+    """
+    df_null = df_windows[df_windows['Label'] == 0]
+    df_not_null = df_windows[df_windows['Label'] != 0]
+
+        # We then remove the rows where there is no peak. This is done by
+        # removing the rows where PeakIndex is 0.
+    df_null = df_null[df_null['PeakIndex'] != 0]
+        # We then drop the PeakIndex column
+    df_null = df_null.drop(columns=['PeakIndex'])
+        # We then remove any remaining duplicates specified by the
+        # 'RelativePeakIndex' column.
+    df_null = df_null.drop_duplicates(subset=['RelativePeakIndex'])
+
+        # There is still a chance that some null labels window are duplicates of
+        # the not null label windows. To remove these duplicates, we get the
+        # 'RelativePeakIndex' column of the df_not_null dataframe and remove any
+        # rows in the df_null dataframe that have the same value in the
+        # 'RelativePeakIndex' column.
+    relativePeakIndicies = df_not_null['RelativePeakIndex'].values
+    df_null = df_null[~df_null['RelativePeakIndex'].isin(relativePeakIndicies)]
+
+        # We then get the rows where the label is not 0, remove the PeakIndex
+        # column, and combine with the df_null dataframe.
+    df_not_null = df_not_null.drop(columns=['PeakIndex'])
+    df_noDuplicates = pd.concat([df_not_null, df_null])
+    return df_noDuplicates
+
+def sortWindows(df, window_size):
+    """
+    Sort each window in the dataframe by the amplitude of the peak relative to
+    the window.
+    
+    :param df: dataframe
+    :param window_size: window size
+    
+    :return: dataframe
+    """
+    
+    # We now need to order the windows based the height. The height of the window
+    # is the difference between the peak and the minimum value in the window.
+    # We then sort the windows by the height in descending order. This ensures
+    # that the windows with the largest peaks are at the top of the dataframe.
+
+    # Create a copy of the dataframe
+    df_sorted = df.copy()
+
+    # Get peak values for each row
+    peak_values = df_sorted.filter(regex='Amplitude\d+').values[:, window_size]
+
+    # Get the minimum values for each row
+    min_values = df_sorted.filter(regex='Amplitude\d+').values.min(axis=1)
+
+    # Get the height of each window
+    heights = peak_values - min_values
+
+    # Add the height column to the dataframe
+    df_sorted['Height'] = heights
+
+    # Sort the dataframe by the height column in descending order
+    df_sorted = df_sorted.sort_values(by='Height', ascending=False)
+
+    return df_sorted
 
 def unbiasData(df):
     """
@@ -672,3 +697,26 @@ def plotFrequencyDomain(df, sampling_freq=25000, num_samples_plot=5000, label='R
 
     plt.plot()
 
+def plotWindows(df, window_size):
+    """
+    Plot the windows around the peaks.
+    
+    :param df: dataframe
+    :param window_size: window size
+    
+    :return: None
+    """
+    plt.subplots(2, 3)
+        # group the rows by the label column
+    grouped = df.groupby('Label')
+        # plot the first 20 windows for each label on the same graph
+    for i, (label, group) in enumerate(grouped):
+            # get the values in the amplitude columns
+        amplitudes = group.filter(regex='Amplitude\d+').values
+        plt.subplot(2, 3, i + 1)
+        # plot the amplitudes as the color grey with an alpha of 0.5
+        plt.plot(np.arange(-window_size, window_size), amplitudes[:200, :].T, color='grey', alpha=0.1)
+        plt.xlabel('Window Index')
+        plt.ylabel('Amplitude')
+        plt.title(f'Class {label}')
+    plt.show()

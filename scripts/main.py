@@ -17,7 +17,7 @@ def main():
     high_cutoff_freqs = [100, 100, 100, 100, 100]
 
     # Create a list of the SNR values to use for each dataset
-    noisePowers = [20, 20, 20, 20, 20]
+    noisePowers = [20, 40, 60, 80, 100]
 
     # Create a list of the data files to use for each dataset
     data_files = [
@@ -83,7 +83,7 @@ def run(filepath, noisePower, peak_threshold, low_cutoff_freq, high_cutoff_freq)
 
     # Preprocess the data
     df_prediction = pp.preprocessPredictionData(
-        d, low_cutoff_freq, high_cutoff_freq, sampling_freq, window_size, peak_threshold)
+        d, low_cutoff_freq, high_cutoff_freq, sampling_freq, window_size)
     
     # Print the number of rows in the dataframe
     print(f'Number of rows in {filename}.mat: {len(df_prediction)}')

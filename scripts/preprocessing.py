@@ -63,7 +63,7 @@ def savePredictions(filepath, predictions, predictions_indicies):
     # save the predictions as a .mat file
     sio.savemat(filepath, {'Class': predictions, 'Index': predictions_indicies})
 
-def preprocessTrainingData(d, index, label, low_cutoff_freq=1000, high_cutoff_freq=1000, sampling_freq=25000, window_size=100, zero_bias_coefficient=8):
+def preprocessTrainingData(d, index, label, low_cutoff_freq=1000, high_cutoff_freq=1000, sampling_freq=25000, window_size=100, noisePower=0):
     """
     Preprocess the data
     
@@ -94,12 +94,9 @@ def preprocessTrainingData(d, index, label, low_cutoff_freq=1000, high_cutoff_fr
     df_norm = normalizeAmplitudes(df)
 
     dataFrames = []
-    low_noise = 20
-    high_noise = 100
-    step = int((high_noise - low_noise) / 5)
-    for SNR in range(high_noise, low_noise - 1, -step):
+    for noiseFactors in [0, noisePower]:
         # add noise to the data
-        df_noise = addNoise(df_norm, SNR)
+        df_noise = addNoise(df_norm, noiseFactors)
         # filter the data. Filtering can cause the amplitudes to decrease in
         # power so the data is normalized again.
         df_low_filtered = lowPassFilter(df_noise, low_cutoff_freq, sampling_freq)
@@ -267,20 +264,20 @@ def normalizeAmplitudes(df):
 
     return df
 
-def addNoise(df, SNR):
+def addNoise(df, noisePower):
     """
     Add noise to the data
     
     :param df: dataframe
-    :param SNR: signal to noise ratio
+    :param noisePower: Percentage of the maximum amplitude value to add as noise
     
     :return: dataframe
 
     :raises ValueError: if SNR is not between 0 and 100
     """
 
-    if 0 > SNR or SNR > 100:
-        raise ValueError('SNR must be between 0 and 100')
+    if 0 > noisePower or noisePower > 100:
+        raise ValueError('Noise Power must be between 0 and 100')
 
     # Generate a gaussian noise signal with amplitudes ranging from -1 to 1 and
     # a mean of 0 and a standard deviation of 1 and frequencies from 0 to 25kHz
@@ -290,15 +287,10 @@ def addNoise(df, SNR):
     # Normalize the noise so that the values are between -1 and 1
     noise = noise / noise.max()
 
-    # Divide the SNR by 100 to get the difference between the max amplitude and
-    # the max noise
-    SNR = SNR / 100
-
-    # Get the max noise amplitude
-    noise_factor = 1 - SNR
+    noiseFactor = noisePower / 100
 
     # Multiply the noise by the noise factor
-    noise = noise * noise_factor
+    noise = noise * noiseFactor
 
     df_noise = df.copy()
 

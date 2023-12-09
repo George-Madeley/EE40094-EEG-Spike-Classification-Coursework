@@ -89,7 +89,7 @@ def run(filepath, noisePower, peak_threshold, low_cutoff_freq, high_cutoff_freq)
     print(f'Number of rows in {filename}.mat: {len(df_prediction)}')
 
     # Make the predictions
-    predictions, prediction_indicies = model.predict(df_prediction)
+    predictions, prediction_indicies = model.predict(df_prediction, title=filename)
 
     # calculate the number of predictions
     num_predictions = len(predictions)

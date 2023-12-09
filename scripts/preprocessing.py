@@ -108,7 +108,7 @@ def preprocessTrainingData(d, index, label, low_cutoff_freq=1000, high_cutoff_fr
 
         df_sorted = sortWindows(df_noDuplicates, window_size)
 
-        plotWindows(df_sorted, window_size)
+        plotWindows(df_sorted, window_size, f'D1 - {noiseFactors}% Noise')
 
         # Unbias the data
         df_unbias = unbiasData(df_sorted)
@@ -697,7 +697,7 @@ def plotFrequencyDomain(df, sampling_freq=25000, num_samples_plot=5000, label='R
 
     plt.plot()
 
-def plotWindows(df, window_size):
+def plotWindows(df, window_size, title):
     """
     Plot the windows around the peaks.
     
@@ -706,16 +706,20 @@ def plotWindows(df, window_size):
     
     :return: None
     """
-    plt.subplots(2, 3)
-        # group the rows by the label column
+    fig, ax = plt.subplots(2, 3)
+    # Set the title of the figure
+    fig.suptitle(title)
+
+    # group the rows by the label column
     grouped = df.groupby('Label')
-        # plot the first 20 windows for each label on the same graph
+    # plot the first 20 windows for each label on the same graph
     for i, (label, group) in enumerate(grouped):
-            # get the values in the amplitude columns
+        num_plots = len(group) if len(group) < 1000 else 1000
+        # get the values in the amplitude columns
         amplitudes = group.filter(regex='Amplitude\d+').values
         plt.subplot(2, 3, i + 1)
         # plot the amplitudes as the color grey with an alpha of 0.5
-        plt.plot(np.arange(-window_size, window_size), amplitudes[:200, :].T, color='grey', alpha=0.1)
+        plt.plot(np.arange(-window_size, window_size), amplitudes[:num_plots, :].T, color='grey', alpha=0.1)
         plt.xlabel('Window Index')
         plt.ylabel('Amplitude')
         plt.title(f'Class {label}')

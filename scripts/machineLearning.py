@@ -6,8 +6,8 @@ from keras.callbacks import EarlyStopping
 
 import numpy as np
 import tensorflow as tf
-import pandas as pd
-from scipy.ndimage.filters import maximum_filter
+
+from preprocessing import plotWindows
 
 from IArtificialIntelligence import IArtificialIntelligence
 
@@ -115,7 +115,7 @@ class NeuralNetwork(IArtificialIntelligence):
 
         return loss, accuracy, precision, recall
     
-    def predict(self, df, peak_threshold=0):
+    def predict(self, df, peak_threshold=0, title=''):
         """
         Predict the class of each window
 
@@ -145,11 +145,14 @@ class NeuralNetwork(IArtificialIntelligence):
         df_predictions = df.copy()
         df_predictions['Label'] = prediction_labels
 
+        # Plot the windows
+        plotWindows(df_predictions, 50, f'Predictions for {title}')
+
         # Filter out the windows that are labelled as 0
         df_predictions = df_predictions[df_predictions['Label'] != 0]
 
-        # Filter out the windows where the height is less than the peak threshold
-        df_predictions = df_predictions[df_predictions['Height'] > peak_threshold]
+        # Get the first 3000 windows
+        df_predictions = df_predictions[:3000]
 
         # Get the indicies of the predictions
         prediction_indicies = df_predictions.index.values

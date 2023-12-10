@@ -38,7 +38,8 @@ def main():
 
 def run(filepath, noisePower, peak_threshold, low_cutoff_freq, high_cutoff_freq):
     batch_size = 100
-    window_size = 50
+    peak_window_radius = 20
+    search_window_size = 100
     epochs = 1000
     sampling_freq = 25000
     training_partition = 1
@@ -52,7 +53,8 @@ def run(filepath, noisePower, peak_threshold, low_cutoff_freq, high_cutoff_freq)
         low_cutoff_freq,
         high_cutoff_freq,
         sampling_freq,
-        window_size,
+        peak_window_radius,
+        search_window_size,
         noisePower
     )
     df_train, df_test = pp.getTrainAndTestData(df, training_partition)
@@ -62,7 +64,7 @@ def run(filepath, noisePower, peak_threshold, low_cutoff_freq, high_cutoff_freq)
     numOutputs = len(df['Label'].unique())
     
     # Create the model
-    model = ml.NeuralNetwork(window_size * 2, numOutputs)
+    model = ml.NeuralNetwork(peak_window_radius * 2, numOutputs)
 
     # Train the model
     model.train(df_train, batch_size, epochs)
@@ -83,7 +85,13 @@ def run(filepath, noisePower, peak_threshold, low_cutoff_freq, high_cutoff_freq)
 
     # Preprocess the data
     df_prediction = pp.preprocessPredictionData(
-        d, low_cutoff_freq, high_cutoff_freq, sampling_freq, window_size)
+        d,
+        low_cutoff_freq,
+        high_cutoff_freq,
+        sampling_freq,
+        peak_window_radius,
+        search_window_size,
+    )
     
     # Print the number of rows in the dataframe
     print(f'Number of rows in {filename}.mat: {len(df_prediction)}')

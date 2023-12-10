@@ -146,13 +146,10 @@ class NeuralNetwork(IArtificialIntelligence):
         df_predictions['Label'] = prediction_labels
 
         # Plot the windows
-        plotWindows(df_predictions, 50, f'Predictions for {title}')
+        plotWindows(df_predictions, 20, f'Predictions for {title}')
 
         # Filter out the windows that are labelled as 0
         df_predictions = df_predictions[df_predictions['Label'] != 0]
-
-        # Get the first 3000 windows
-        df_predictions = df_predictions[:3000]
 
         # Get the indicies of the predictions
         prediction_indicies = df_predictions.index.values

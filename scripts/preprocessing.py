@@ -62,7 +62,7 @@ def savePredictions(filepath, predictions, predictions_indicies):
     # save the predictions as a .mat file
     sio.savemat(filepath, {'Class': predictions, 'Index': predictions_indicies})
 
-def preprocessTrainingData(d, index, label, low_cutoff_freq=1000, high_cutoff_freq=1000, sampling_freq=25000, window_size=100, noisePower=0):
+def preprocessTrainingData(d, index, label, low_cutoff_freq=1000, high_cutoff_freq=1000, sampling_freq=25000, peak_window_radius=50, search_window_size=100, noisePower=0):
     """
     Preprocess the data
     
@@ -73,15 +73,9 @@ def preprocessTrainingData(d, index, label, low_cutoff_freq=1000, high_cutoff_fr
     :param low_cutoff_freq: cutoff frequency for the low pass filter
     :param high_cutoff_freq: cutoff frequency for the high pass filter
     :param sampling_freq: sampling frequency
-    :param window_size: window size
-    :param zero_bias_coefficient: If the coefficient is 1, then the number of
-                                    windows for the negative label will be the
-                                    same as the number of windows for the
-                                    positive labels. If the coefficient is
-                                    greater than 1, then the number of windows
-                                    for the negative label will be greater than
-                                    the number of windows for the positive and
-                                    vice versa.
+    :param peak_window_radius: peak window radius
+    :param search_window_size: search window size
+    :param noisePower: Percentage of the maximum amplitude value to add as noise
 
     :return: df
     """
@@ -102,13 +96,13 @@ def preprocessTrainingData(d, index, label, low_cutoff_freq=1000, high_cutoff_fr
         # df_high_filtered = highPassFilter(df_low_filtered, high_cutoff_freq, sampling_freq)
         df_filtered = normalizeAmplitudes(df_low_filtered)
         # Split the data into windows
-        df_windows = createWindows(df_filtered, window_size)
+        df_windows = createWindows(df_filtered, peak_window_radius, search_window_size)
 
         df_noDuplicates = filterDuplicates(df_windows)
 
-        df_sorted = sortWindows(df_noDuplicates, window_size)
+        df_sorted = sortWindows(df_noDuplicates, peak_window_radius)
 
-        plotWindows(df_sorted, window_size, f'D1 - {noiseFactors}% Noise')
+        plotWindows(df_sorted, peak_window_radius, f'D1 - {noiseFactors}% Noise')
 
         # Unbias the data
         df_unbias = unbiasData(df_sorted)
@@ -124,7 +118,7 @@ def preprocessTrainingData(d, index, label, low_cutoff_freq=1000, high_cutoff_fr
 
     return df
 
-def preprocessPredictionData(d, low_cutoff_freq=1000, high_cutoff_freq=1000, sampling_freq=25000, window_size=100):
+def preprocessPredictionData(d, low_cutoff_freq=1000, high_cutoff_freq=1000, sampling_freq=25000, peak_window_radius=50, search_window_size=100):
     """
     Preprocess the data
     
@@ -132,7 +126,8 @@ def preprocessPredictionData(d, low_cutoff_freq=1000, high_cutoff_freq=1000, sam
     :param low_cutoff_freq: cutoff frequency for the low pass filter
     :param high_cutoff_freq: cutoff frequency for the high pass filter
     :param sampling_freq: sampling frequency
-    :param window_size: window size
+    :param peak_window_radius: peak window radius
+    :param search_window_size: search window size
 
     :return: df
     """
@@ -148,7 +143,7 @@ def preprocessPredictionData(d, low_cutoff_freq=1000, high_cutoff_freq=1000, sam
     df_filtered = normalizeAmplitudes(df_low_filtered)
 
     # Split the data into windows
-    df_windows = createWindows(df_filtered, window_size)
+    df_windows = createWindows(df_filtered, peak_window_radius, search_window_size)
 
     # There are a bunch of duplicate rows in the dataframe. We need to remove
     # these duplicates to get the windows around the peaks. To do this, we
@@ -161,7 +156,7 @@ def preprocessPredictionData(d, low_cutoff_freq=1000, high_cutoff_freq=1000, sam
     df_windows = df_windows.drop_duplicates(subset=['RelativePeakIndex'])
 
     # Sort the windows by the amplitude of the peak relative to the window.
-    df_sorted = sortWindows(df_windows, window_size)
+    df_sorted = sortWindows(df_windows, peak_window_radius)
 
     return df_sorted
 
@@ -312,12 +307,13 @@ def highPassFilter(df, cutoff_freq, sampling_freq, order=5):
 
     return df_filtered
 
-def createWindows(df, window_size):
+def createWindows(df, peak_window_radius, search_window_size):
     """
     Create windows around the peaks in the data.
     
     :param df: dataframe
-    :param window_size: window size
+    :param peak_window_radius: peak window radius
+    :param search_window_size: search window size
     
     :return: dataframe
     """
@@ -337,7 +333,7 @@ def createWindows(df, window_size):
     # Create a dataframe with the amplitude column duplicated window_size and
     # shifted by 1. This creates the search windows for the peaks.
     df_windows = pd.concat([
-        df['Amplitude'].shift(-i) for i in range(window_size)
+        df['Amplitude'].shift(-i) for i in range(search_window_size)
     ], axis=1)
 
     # When we shift the amplitude column, we get a bunch of NaN values. We need
@@ -348,7 +344,7 @@ def createWindows(df, window_size):
 
     # Rename the 'Amplitude' columns to i where i is the amount the column was 
     # shifted by
-    df_windows.columns = [str(i) for i in range(window_size)]
+    df_windows.columns = [str(i) for i in range(search_window_size)]
 
     # Create a column which will store the index of the peak. We will use this
     # column to create the windows around the peaks. We will then drop this
@@ -474,11 +470,11 @@ def createWindows(df, window_size):
     # by -window_size to window_size. This creates the windows around the
     # indicies
     df_windows = pd.concat([
-        df['Amplitude'].shift(i, fill_value=0) for i in range(window_size, -window_size, -1)
+        df['Amplitude'].shift(i, fill_value=0) for i in range(peak_window_radius, -peak_window_radius, -1)
     ], axis=1)
 
     # Rename the 'Amplitude' columns
-    df_windows.columns = [f'Amplitude{i}' for i in range(2 * window_size)]
+    df_windows.columns = [f'Amplitude{i}' for i in range(2 * peak_window_radius)]
 
     # To only get the windows around the peaks, we use the relative_peak_indicies
     # array to get the rows of the dataframe that contain the windows around the
@@ -544,13 +540,13 @@ def filterDuplicates(df_windows):
     df_noDuplicates = pd.concat([df_not_null, df_null])
     return df_noDuplicates
 
-def sortWindows(df, window_size):
+def sortWindows(df, peak_window_radius):
     """
     Sort each window in the dataframe by the amplitude of the peak relative to
     the window.
     
     :param df: dataframe
-    :param window_size: window size
+    :param peak_window_radius: peak window radius
     
     :return: dataframe
     """
@@ -564,7 +560,7 @@ def sortWindows(df, window_size):
     df_sorted = df.copy()
 
     # Get peak values for each row
-    peak_values = df_sorted.filter(regex='Amplitude\d+').values[:, window_size]
+    peak_values = df_sorted.filter(regex='Amplitude\d+').values[:, peak_window_radius]
 
     # Get the minimum values for each row
     min_values = df_sorted.filter(regex='Amplitude\d+').values.min(axis=1)

@@ -98,6 +98,9 @@ def preprocessTrainingData(d, index, label, low_cutoff_freq=1000, high_cutoff_fr
         # Split the data into windows
         df_windows = createWindows(df_filtered, peak_window_radius, search_window_size)
 
+        # Normalize the mean of the data
+        df_windows = normalizeWindows(df_windows)
+
         df_noDuplicates = filterDuplicates(df_windows)
 
         df_sorted = sortWindows(df_noDuplicates, peak_window_radius)
@@ -144,6 +147,9 @@ def preprocessPredictionData(d, low_cutoff_freq=1000, high_cutoff_freq=1000, sam
 
     # Split the data into windows
     df_windows = createWindows(df_filtered, peak_window_radius, search_window_size)
+
+    # Normalize the mean of the data
+    df_windows = normalizeWindows(df_windows)
 
     # There are a bunch of duplicate rows in the dataframe. We need to remove
     # these duplicates to get the windows around the peaks. To do this, we
@@ -215,6 +221,27 @@ def normalizeAmplitudes(df):
     # normalize the amplitude column so that the values are between -1 and 1 by
     # dividing by the maximum value
     df['Amplitude'] = df['Amplitude'] / df['Amplitude'].max()
+
+    return df
+
+def normalizeWindows(df):
+    """
+    Normalize the amplitudes so that they have a mean of 0.
+    
+    :param df: dataframe
+
+    :return: dataframe
+    """
+    # Get the amplitude columns
+    amplitude_names = df.filter(regex='Amplitude\d+').columns
+
+    # Get the amplitude values
+    amplitudes = df[amplitude_names].values
+
+    # Minus the minimum value from the amplitudes
+    amplitudes = amplitudes - amplitudes.min(axis=1).reshape(-1, 1)
+
+    df[amplitude_names] = amplitudes
 
     return df
 

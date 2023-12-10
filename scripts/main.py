@@ -40,7 +40,7 @@ def run(filepath, noisePower, peak_threshold, low_cutoff_freq, high_cutoff_freq)
     batch_size = 100
     peak_window_radius = 20
     search_window_size = 100
-    epochs = 1000
+    epochs = 100
     sampling_freq = 25000
     training_partition = 1
 

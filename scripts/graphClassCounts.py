@@ -53,17 +53,29 @@ for i,filepath in enumerate(filepaths):
     # plot the percentages on a bar chart where the x-axis is the label and the
     # y-axis is the percentage. Each pair of bars should be adjacent to each
     # other. The left bar should be the actual percentage and the right bar
-    # should be the predicted percentage.
+    # should be the predicted percentage. The right bar should also contain
+    # text above it with the actual count.
     x = np.arange(len(uniqueLabels))
     width = 0.35
 
-    ax[i // 3][i % 3].bar(x - width / 2, actualPercentages, width, label='Actual')
-    ax[i // 3][i % 3].bar(x + width / 2, predictionPercentages, width, label='Predicted')
-    ax[i // 3][i % 3].set_xticks(x)
-    ax[i // 3][i % 3].set_xticklabels(uniqueLabels)
-    ax[i // 3][i % 3].set_title(f'D{i + 2}')
-    ax[i // 3][i % 3].set_ylabel('Percentage')
-    ax[i // 3][i % 3].legend()
+    ax[i // 3, i % 3].bar(x - width / 2, actualPercentages, width, label='Actual')
+    ax[i // 3, i % 3].bar(x + width / 2, predictionPercentages, width, label='Predicted')
+    ax[i // 3, i % 3].set_xticks(x)
+    ax[i // 3, i % 3].set_xticklabels(uniqueLabels)
+    ax[i // 3, i % 3].set_title(f'D{i + 2}')
+    ax[i // 3, i % 3].set_xlabel('Label')
+    ax[i // 3, i % 3].set_ylabel('Percentage')
+    ax[i // 3, i % 3].legend()
+
+    # Add the actual counts above the predicted percentages
+    for j, v in enumerate(actualPercentages):
+        ax[i // 3, i % 3].text(j - width / 2, v + 1, str(int(noTrueCounts[i, j])), ha='center')
+
+    # Add the predicted counts above the predicted percentages
+    for j, v in enumerate(predictionPercentages):
+        ax[i // 3, i % 3].text(j + width / 2, v + 1, str(int(predictedCounts[j])), ha='center')
+
+
 
 plt.show()
     

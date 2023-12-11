@@ -65,11 +65,13 @@ def preprocessTrainingData(d, index, label, low_cutoff_freq=1000, high_cutoff_fr
 
     
     df = createDataFrame(d, index, label)
-    # filter the data. Filtering can cause the amplitudes to decrease in
-    # power so the data is normalized again.
-    df_low_filtered = bandPassFilter(df, low_cutoff_freq, sampling_freq)
 
-    df_filtered = normalizeAmplitudes(df_low_filtered)
+    # filter the data
+    df_filtered = bandPassFilter(df, sampling_freq)
+
+    # Normalize the data
+    df_normalised = normalizeAmplitudes(df_filtered)
+
     # Split the data into windows
     df_windows = createWindows(df_filtered, peak_window_radius, search_window_size)
 
@@ -232,56 +234,26 @@ def addNoise(df, noisePower):
 
     return df_noise
 
-def lowPassFilter(df, cutoff_freq, sampling_freq, order=5):
+def bandPassFilter(df, sampling_freq, order=2):
     """
-    Low pass filter the data
+    Band pass filter the data
     
     :param df: dataframe
-    :param cutoff_freq: cutoff frequency
     :param sampling_freq: sampling frequency
     :param order: order
     
     :return: dataframe
     """
-
-    # create a copy of the df
-    df_filtered = df.copy()
-
-    b, a = butter(order, cutoff_freq, fs=sampling_freq, btype='low', analog=False)
-
-    # apply the filter to the amplitude column
-    df_filtered['Amplitude'] = lfilter(b, a, df_filtered['Amplitude'])
-
-    # Accommodate for the phase shift caused by the filter
-    df_filtered['Amplitude'] = np.roll(df_filtered['Amplitude'], -2 * order)
-
-    return df_filtered
-
-def highPassFilter(df, cutoff_freq, sampling_freq, order=5):
-    """
-    High pass filter the data
-    
-    :param df: dataframe
-    :param cutoff_freq: cutoff frequency
-    :param sampling_freq: sampling frequency
-    :param order: order
-
-    :return: dataframe
-    """
-
-    # create a copy of the df
-    df_filtered = df.copy()
-
     # Create the filter
-    b, a = butter(order, cutoff_freq, fs=sampling_freq, btype='high', analog=False)
+    b, a = butter(order, [0.005, 0.05], btype='band', analog=False, fs=sampling_freq)
 
-    # apply the filter to the amplitude column
-    df_filtered['Amplitude'] = lfilter(b, a, df_filtered['Amplitude'])
+    # Get the amplitude column
+    amplitudes = df['Amplitude'].values
 
-    # Accommodate for the phase shift caused by the filter
-    df_filtered['Amplitude'] = np.roll(df_filtered['Amplitude'], -2 * order)
+    # Apply the filter to the amplitude column
+    df['Amplitude'] = lfilter(b, a, amplitudes)
 
-    return df_filtered
+    return df
 
 def createWindows(df, peak_window_radius, search_window_size):
     """

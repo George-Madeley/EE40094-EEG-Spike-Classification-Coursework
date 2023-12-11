@@ -272,8 +272,7 @@ def createWindows(df, peak_window_radius, search_window_size):
     indicies = df.index
 
     # if the label column exists, get the indicies where the label is not 0
-    if 'Label' in df.columns:
-        indicies_of_labels = indicies[df['Label'] != 0]
+    indicies_of_labels = indicies[df['Label'] != 0]
 
     # Create a dataframe with the amplitude column duplicated window_size and
     # shifted by 1. This creates the search windows for the peaks.
@@ -352,7 +351,7 @@ def createWindows(df, peak_window_radius, search_window_size):
     # repeat this process until we find a peak that has not been assigned a
     # label. If all the peaks within the search window have been assigned a
     # label, then we assign the last peak to the label.
-    if 'Label' in df.columns:
+    if len(indicies_of_labels) > 0:
         # Create an array to store the indicies of the peaks that have been
         # assigned a label
         indicies_with_labels = []

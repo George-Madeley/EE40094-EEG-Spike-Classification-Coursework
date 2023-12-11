@@ -6,6 +6,55 @@ import tensorflow as tf
 from scipy.signal import butter, lfilter
 from sklearn.decomposition import PCA
 
+def preprocessData(filepath, sampling_freq=25000, peak_window_radius=50, search_window_size=100):
+    """
+    Preprocess the data
+
+    :param filepath: filepath of the prediction data
+    :param sampling_freq: sampling frequency
+    :param peak_window_radius: peak window radius
+    :param search_window_size: search window size
+
+    :return: df
+    """
+
+    # Load the training data
+    d, index, label = loadData('./data/D1.mat')
+    df_train = createDataFrame(d, index, label)
+
+    # Load the prediction data
+    d = loadData(filepath)
+    df_predi = createDataFrame(d)
+
+    # filter the data
+    df_train = bandPassFilter(df_train, sampling_freq)
+    df_predi = bandPassFilter(df_predi, sampling_freq)
+
+    # Normalize the data
+    df_train = normalizeAmplitudes(df_train)
+    df_predi = normalizeAmplitudes(df_predi)
+
+    # Split the data into windows
+    df_train = createWindows(df_train, peak_window_radius, search_window_size)
+    df_predi = createWindows(df_predi, peak_window_radius, search_window_size)
+
+    # Remove any duplicate windows from the data
+    df_train = removeDuplicates(df_train)
+    df_predi = removeDuplicates(df_predi)
+
+    # Perform PCA on the data
+    df_train, df_predi = principleComponentAnalysis(df_train, df_predi)
+
+    # Unbias the data
+    df_train = unbiasData(df_train, zero_bias_coefficient=1)
+
+    # plotWindows(df_unbias, peak_window_radius, f'D1 - {noiseFactors}% Noise')
+
+    # shuffle the dataframe
+    df_train = df_train.sample(frac=1).reset_index(drop=True)
+
+    return df_train, df_predi
+
 def loadData(filepath):
     """
     Load the data from the D1.mat file.
@@ -31,103 +80,6 @@ def loadData(filepath):
 
     # return the data
     return d, index, label
-
-def savePredictions(filepath, predictions, predictions_indicies):
-    """
-    Save the predictions to the given filepath.
-
-    :param filepath: filepath
-    :param predictions: predictions
-    :param predictions_indicies: predictions indicies
-    
-    :return: None
-    """
-
-    # save the predictions as a .mat file
-    sio.savemat(filepath, {'Class': predictions, 'Index': predictions_indicies})
-
-def preprocessTrainingData(d, index, label, low_cutoff_freq=1000, high_cutoff_freq=1000, sampling_freq=25000, peak_window_radius=50, search_window_size=100, noisePowers=None):
-    """
-    Preprocess the data
-    
-    :param d: the raw time domain recording
-    :param index: the locations in the recording of the start of each spike
-    :param label: the class of each spike (1, 2, 3, 4, or 5), i.e. the type of
-                    neuron that fired it
-    :param low_cutoff_freq: cutoff frequency for the low pass filter
-    :param high_cutoff_freq: cutoff frequency for the high pass filter
-    :param sampling_freq: sampling frequency
-    :param peak_window_radius: peak window radius
-    :param search_window_size: search window size
-    :param noisePowers: Percentage of the maximum amplitude value to add as noise
-
-    :return: df
-    """
-
-    
-    df = createDataFrame(d, index, label)
-
-    # filter the data
-    df = bandPassFilter(df, sampling_freq)
-
-    # Normalize the data
-    df = normalizeAmplitudes(df)
-
-    # Split the data into windows
-    df = createWindows(df, peak_window_radius, search_window_size)
-
-    # Remove any duplicate windows from the data
-    df = removeDuplicates(df)
-
-    # Perform PCA on the data
-    df = principleComponentAnalysis(df)
-
-    # Unbias the data
-    df = unbiasData(df, zero_bias_coefficient=8)
-
-    # plotWindows(df_unbias, peak_window_radius, f'D1 - {noiseFactors}% Noise')
-
-    # shuffle the dataframe
-    df = df.sample(frac=1).reset_index(drop=True)
-
-    return df
-
-def preprocessPredictionData(d, low_cutoff_freq=1000, high_cutoff_freq=1000, sampling_freq=25000, peak_window_radius=50, search_window_size=100):
-    """
-    Preprocess the data
-    
-    :param d: the raw time domain recording
-    :param low_cutoff_freq: cutoff frequency for the low pass filter
-    :param high_cutoff_freq: cutoff frequency for the high pass filter
-    :param sampling_freq: sampling frequency
-    :param peak_window_radius: peak window radius
-    :param search_window_size: search window size
-
-    :return: df
-    """
-    # Create a dataframe from the data
-    df = createDataFrame(d)
-
-    # Filter the data
-    df = bandPassFilter(df, sampling_freq)
-
-    # Normalize the data
-    df = normalizeAmplitudes(df)
-
-    # Split the data into windows
-    df = createWindows(df, peak_window_radius, search_window_size)
-
-    # There are a bunch of duplicate rows in the dataframe. We need to remove
-    # these duplicates to get the windows around the peaks. To do this, we
-    # remove the rows where peakIndex is 0.
-    df_windows = df_windows[df_windows['PeakIndex'] != 0]
-    # We then drop the PeakIndex column
-    df_windows = df_windows.drop(columns=['PeakIndex'])
-    # We then remove any remaining duplicates specified by the
-    # 'RelativePeakIndex' column.
-    df_windows = df_windows.drop_duplicates(subset=['RelativePeakIndex'])
-
-    return df_sorted
 
 def createDataFrame(d, index=None, label=None, sampling_freq=25000):
     """
@@ -484,40 +436,62 @@ def removeDuplicates(df_windows):
     df_noDuplicates = pd.concat([df_not_null, df_null])
     return df_noDuplicates
 
-def principleComponentAnalysis(df, n_components=5):
+def principleComponentAnalysis(df_train, df_predi, n_components=5):
     """
     Perform principle component analysis on the data
     
-    :param df: dataframe
+    :param df_train: dataframe
+    :param df_predi: dataframe
+    :param n_components: number of components
     
     :return: dataframe
     """
 
     # Get the columns that start with 'Amplitude' and suffix with a number
-    amplitude_names = df.filter(regex='Amplitude\d+').columns
-    amplitudes = df[amplitude_names].values
+    train_amplitude_names = df_train.filter(regex='Amplitude\d+').columns
+    train_amplitudes = df_train[train_amplitude_names].values
+
+    # Get the columns that start with 'Amplitude' and suffix with a number
+    predi_amplitude_names = df_predi.filter(regex='Amplitude\d+').columns
+    predi_amplitudes = df_predi[predi_amplitude_names].values
 
     # Create a PCA model
     pca = PCA(n_components=n_components)
 
     # Fit the model to the data
-    pca.fit(amplitudes)
+    pca.fit(train_amplitudes)
 
     # Get the principle components for each window
-    principle_components = pca.fit_transform(amplitudes)
+    train_principle_components = pca.fit_transform(train_amplitudes)
+    predi_principle_components = pca.transform(predi_amplitudes)
 
     # Create a dataframe with the principle components
-    df_pca = pd.DataFrame(
-        data=principle_components,
+    df_train_pca = pd.DataFrame(
+        data=train_principle_components,
+        columns=[f'PC{i}' for i in range(n_components)]
+    )
+    df_predi_pca = pd.DataFrame(
+        data=predi_principle_components,
         columns=[f'PC{i}' for i in range(n_components)]
     )
 
     # Add the columns that do not have the name 'Amplitude' to the dataframe
-    # df_windows such as the Time column and the one-hot encoded label columns.
-    column_names = df.columns.difference(amplitude_names)
-    df_pca = pd.concat([df_pca, df[column_names]], axis=1)
+    # such as the Time column and the one-hot encoded label columns.
+    train_column_names = df_train.columns.difference(train_amplitude_names)
+    df_train_pca = pd.concat([
+        df_train_pca,
+        df_train[train_column_names]
+    ], axis=1)
 
-    return df_pca
+    # Add the columns that do not have the name 'Amplitude' to the dataframe
+    # such as the Time column and the one-hot encoded label columns.
+    predi_column_names = df_predi.columns.difference(predi_amplitude_names)
+    df_predi_pca = pd.concat([
+        df_predi_pca,
+        df_predi[predi_column_names]
+    ], axis=1)
+
+    return df_train_pca, df_predi_pca
 
 def unbiasData(df, zero_bias_coefficient=1):
     """
@@ -610,6 +584,20 @@ def getTrainAndTestData(df, train_size):
     df_test = df.iloc[n_train:, :]
 
     return df_train, df_test
+
+def savePredictions(filepath, predictions, predictions_indicies):
+    """
+    Save the predictions to the given filepath.
+
+    :param filepath: filepath
+    :param predictions: predictions
+    :param predictions_indicies: predictions indicies
+    
+    :return: None
+    """
+
+    # save the predictions as a .mat file
+    sio.savemat(filepath, {'Class': predictions, 'Index': predictions_indicies})
 
 def plotTimeDomain(df, num_samples_plot=5000, label='Raw'):
     """

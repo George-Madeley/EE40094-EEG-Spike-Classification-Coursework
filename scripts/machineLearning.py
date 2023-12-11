@@ -1,13 +1,11 @@
 from keras.models import Sequential
-from keras.layers import Dense, InputLayer, Conv1D, Flatten
+from keras.layers import Dense, InputLayer
 from keras.metrics import Precision, Recall
 from keras.optimizers import Adam
 from keras.callbacks import EarlyStopping
 
 import numpy as np
 import tensorflow as tf
-
-from preprocessing import plotWindows
 
 from IArtificialIntelligence import IArtificialIntelligence
 
@@ -28,19 +26,20 @@ class NeuralNetwork(IArtificialIntelligence):
         :return: model
         """
 
-        num_hidden_neurons = 100
-        kernel_size = 3
-
         model = Sequential()
         model.add(InputLayer(input_shape=(numInputs, 1)))
-        model.add(Conv1D(num_hidden_neurons, kernel_size=kernel_size, activation='relu'))
-        model.add(Flatten())
+        model.add(Dense(60, activation='sigmoid'))
+        model.add(Dense(30, activation='sigmoid'))
         model.add(Dense(numOutputs, activation='softmax'))
 
         opt = Adam(learning_rate=0.001)
 
         # Compile the model
-        model.compile(loss='categorical_crossentropy', optimizer=opt, metrics=['accuracy', Precision(), Recall()])
+        model.compile(
+            loss='categorical_crossentropy',
+            optimizer=opt,
+            metrics=['accuracy', Precision(), Recall()]
+        )
 
         return model
     
@@ -56,7 +55,7 @@ class NeuralNetwork(IArtificialIntelligence):
         """
 
         # Get the the columns that start with 'Amplitude' and suffix with a number
-        amplitude_names = df_train.filter(regex='Amplitude\d+').columns
+        amplitude_names = df_train.filter(regex='PCA\d+').columns
         amplitudes = df_train[amplitude_names].values
 
         # Add a dimension to the amplitudes array for the convolutional layer
@@ -75,7 +74,15 @@ class NeuralNetwork(IArtificialIntelligence):
         early_stopping = EarlyStopping(monitor='val_precision', patience=20, mode='max')
 
         # Train the model
-        self.model.fit(amplitudes, labels, batch_size=batch_size, epochs=epochs, verbose=1, validation_split=0.2, callbacks=[early_stopping])
+        self.model.fit(
+            amplitudes,
+            labels,
+            batch_size=batch_size,
+            epochs=epochs,
+            verbose=1,
+            validation_split=0.2,
+            callbacks=[early_stopping]
+        )
 
     def test(self, df_test):
         """
@@ -89,7 +96,7 @@ class NeuralNetwork(IArtificialIntelligence):
         """
 
         # Get the the columns that start with 'Amplitude' and suffix with a number
-        amplitude_names = df_test.filter(regex='Amplitude\d+').columns
+        amplitude_names = df_test.filter(regex='PCA\d+').columns
         amplitudes = df_test[amplitude_names].values
 
         # Add a dimension to the amplitudes array for the convolutional layer
@@ -115,18 +122,17 @@ class NeuralNetwork(IArtificialIntelligence):
 
         return loss, accuracy, precision, recall
     
-    def predict(self, df, peak_threshold=0, title=''):
+    def predict(self, df):
         """
         Predict the class of each window
 
         :param df: dataframe
-        :param peak_threshold: peak threshold
 
-        :return: predictions, predictions_indicies
+        :return: predictions
         """
 
         # Get the the columns that start with 'Amplitude' and suffix with a number
-        amplitude_names = df.filter(regex='Amplitude\d+').columns
+        amplitude_names = df.filter(regex='PCA\d+').columns
         amplitudes = df[amplitude_names].values
 
         # Add a dimension to the amplitudes array for the convolutional layer
@@ -138,22 +144,5 @@ class NeuralNetwork(IArtificialIntelligence):
         # Predict the class of each window
         predictions = self.model.predict(amplitudes)
 
-        # Find the class with the highest probability
-        prediction_labels = predictions.argmax(axis=1)
-
-        # Create a dataframe of the predictions
-        df_predictions = df.copy()
-        df_predictions['Label'] = prediction_labels
-
-        # Plot the windows
-        plotWindows(df_predictions, 20, f'Predictions for {title}')
-
-        # Filter out the windows that are labelled as 0
-        df_predictions = df_predictions[df_predictions['Label'] != 0]
-
-        # Get the indicies of the predictions
-        prediction_indicies = df_predictions.index.values
-        prediction_labels = df_predictions['Label'].values
-
-        return prediction_labels, prediction_indicies
+        return predictions
     

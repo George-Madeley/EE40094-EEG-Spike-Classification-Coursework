@@ -1,5 +1,5 @@
 import machineLearning as ml
-from preprocessing import preprocessData, savePredictions
+from preprocessing import preprocessData, postProcessData
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
@@ -34,35 +34,32 @@ def run(filepath):
         search_window_size=search_window_size,
     )
 
-
     # Get the number of possible outputs
     numOutputs = len(df_train['Label'].unique())
+    # get the number of possible inputs
+    numInputs = len(df_train.filter(regex='PCA\d+').columns)
     
     # Create the model
-    model = ml.NeuralNetwork(peak_window_radius * 2, numOutputs)
+    model = ml.NeuralNetwork(numInputs, numOutputs)
 
     # Train the model
     model.train(df_train, batch_size, epochs)
 
     # Get filename
     filename = os.path.basename(filepath)
-    # Predict the labels of the data in D2.mat, D3.mat, D4.mat, D5.mat, and
-    # D6.mat
     print(f'Predicting {filename}...')
     
     # Print the number of rows in the dataframe
     print(f'Number of rows in {filename}.mat: {len(df_predi)}')
 
     # Make the predictions
-    predictions, prediction_indicies = model.predict(df_predi, title=filename)
-
-    # calculate the number of predictions
-    num_predictions = len(predictions)
-    print(f'Number of predictions for {filename}.mat: {num_predictions}')
-
-    # Save the predictions
+    predictions = model.predict(df_predi)
+    
     filepath = os.path.join('results', f'{filename}')
-    savePredictions(filepath, predictions, prediction_indicies)
+
+    postProcessData(df_predi, predictions, filepath)
+
+
 
 if __name__ == '__main__':
     main()

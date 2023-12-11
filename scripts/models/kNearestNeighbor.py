@@ -1,6 +1,6 @@
 from sklearn.neighbors import KNeighborsClassifier
 
-from IArtificialIntelligence import IArtificialIntelligence
+from models.IArtificialIntelligence import IArtificialIntelligence
 
 class KNearestNeighbor(IArtificialIntelligence):
     def __init__(self, k):
@@ -73,6 +73,6 @@ class KNearestNeighbor(IArtificialIntelligence):
         amplitudes = df_predictions[amplitude_names].values
 
         # Predict the labels
-        predictions = self.model.predict_proba(amplitudes)
+        predictions = self.model.predict_proba(amplitudes)[0]
 
         return predictions

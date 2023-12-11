@@ -6,7 +6,7 @@ from keras.callbacks import EarlyStopping
 
 import tensorflow as tf
 
-from IArtificialIntelligence import IArtificialIntelligence
+from models.IArtificialIntelligence import IArtificialIntelligence
 
 class NeuralNetwork(IArtificialIntelligence):
     """

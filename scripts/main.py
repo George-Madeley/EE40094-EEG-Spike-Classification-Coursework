@@ -29,6 +29,7 @@ def run(filepath):
     sampling_freq = 25000
     regex = 'Amplitude\d+'
     PCA = regex == 'PC\d+'
+    K = 3
 
     df_train, df_predi = preprocessData(
         filepath,
@@ -44,10 +45,10 @@ def run(filepath):
     numInputs = len(df_train.filter(regex=regex).columns)
     
     # Create the model
-    model = NeuralNetwork(numInputs, numOutputs)
+    model = KNearestNeighbor(K)
 
     # Train the model
-    model.train(df_train, batch_size, epochs)
+    model.train(df_train, regex)
 
     # Get filename
     filename = os.path.basename(filepath)
@@ -57,7 +58,7 @@ def run(filepath):
     print(f'Number of rows in {filename}.mat: {len(df_predi)}')
 
     # Make the predictions
-    predictions = model.predict(df_predi)
+    predictions = model.predict(df_predi, regex)
     
     filepath = os.path.join('results', f'{filename}')
 

@@ -27,18 +27,21 @@ def run(filepath):
     search_window_size = 100
     epochs = 100
     sampling_freq = 25000
+    regex = 'Amplitude\d+'
+    PCA = regex == 'PC\d+'
 
     df_train, df_predi = preprocessData(
         filepath,
         sampling_freq=sampling_freq,
         peak_window_radius=peak_window_radius,
         search_window_size=search_window_size,
+        PCA=PCA,
     )
 
     # Get the number of possible outputs
     numOutputs = len(df_train['Label'].unique())
     # get the number of possible inputs
-    numInputs = len(df_train.filter(regex='PC\d+').columns)
+    numInputs = len(df_train.filter(regex=regex).columns)
     
     # Create the model
     model = NeuralNetwork(numInputs, numOutputs)

@@ -19,14 +19,15 @@ class KNearestNeighbor(IArtificialIntelligence):
 
         return model
 
-    def train(self, df_train):
+    def train(self, df_train, regex):
         """
         Train the model
         
         :param train_df: training dataframe
+        :param regex: regex to use to get the columns
         """
         # Get the the columns that start with 'Amplitude' and suffix with a number
-        amplitude_names = df_train.filter(regex='PC\d+').columns
+        amplitude_names = df_train.filter(regex=regex).columns
         amplitudes = df_train[amplitude_names].values
 
         # Get the columns that start with 'Label' and suffix with a number
@@ -36,16 +37,17 @@ class KNearestNeighbor(IArtificialIntelligence):
         # Train the model
         self.model.fit(amplitudes, labels)
 
-    def test(self, df_test):
+    def test(self, df_test, regex):
         """
         Test the model
         
         :param test_df: test dataframe
+        :param regex: regex to use to get the columns
         
         :return: score
         """
         # Get the the columns that start with 'Amplitude' and suffix with a number
-        amplitude_names = df_test.filter(regex='PC\d+').columns
+        amplitude_names = df_test.filter(regex=regex).columns
         amplitudes = df_test[amplitude_names].values
 
         # Get the columns that start with 'Label' and suffix with a number
@@ -57,16 +59,17 @@ class KNearestNeighbor(IArtificialIntelligence):
 
         return score
 
-    def predict(self, df_predictions):
+    def predict(self, df_predictions, regex):
         """
         Predict the labels of the test data
         
         :param test_df: test dataframe
+        :param regex: regex to use to get the columns
         
         :return: predictions
         """
         # Get the the columns that start with 'Amplitude' and suffix with a number
-        amplitude_names = df_predictions.filter(regex='PC\d+').columns
+        amplitude_names = df_predictions.filter(regex=regex).columns
         amplitudes = df_predictions[amplitude_names].values
 
         # Predict the labels

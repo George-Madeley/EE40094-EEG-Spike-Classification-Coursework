@@ -6,7 +6,7 @@ import tensorflow as tf
 from scipy.signal import butter, lfilter
 from sklearn.decomposition import PCA
 
-def preprocessData(filepath, sampling_freq=25000, peak_window_radius=50, search_window_size=100):
+def preprocessData(filepath, sampling_freq=25000, peak_window_radius=50, search_window_size=100, PCA=False):
     """
     Preprocess the data
 
@@ -14,6 +14,7 @@ def preprocessData(filepath, sampling_freq=25000, peak_window_radius=50, search_
     :param sampling_freq: sampling frequency
     :param peak_window_radius: peak window radius
     :param search_window_size: search window size
+    :param PCA: perform PCA on the data
 
     :return: df
     """
@@ -48,6 +49,8 @@ def preprocessData(filepath, sampling_freq=25000, peak_window_radius=50, search_
     # shuffle the dataframe
     df_train = df_train.sample(frac=1).reset_index(drop=True)
 
+    if not PCA:
+        return df_train, df_predi
     # Perform PCA on the data
     df_train, df_predi = principleComponentAnalysis(df_train, df_predi)
 

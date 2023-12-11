@@ -42,19 +42,20 @@ class NeuralNetwork(IArtificialIntelligence):
 
         return model
     
-    def train(self, df_train, batch_size, epochs):
+    def train(self, df_train, batch_size, epochs, regex):
         """
         Train the model
         
         :param train_df: training dataframe
         :param batch_size: batch size
         :param epochs: epochs
+        :param regex: regex to use to get the columns
         
         :return: None
         """
 
         # Get the the columns that start with 'Amplitude' and suffix with a number
-        amplitude_names = df_train.filter(regex='PC\d+').columns
+        amplitude_names = df_train.filter(regex=regex).columns
         amplitudes = df_train[amplitude_names].values
 
         # turn amplitudes into a tensor
@@ -81,11 +82,12 @@ class NeuralNetwork(IArtificialIntelligence):
             callbacks=[early_stopping]
         )
 
-    def test(self, df_test):
+    def test(self, df_test, regex):
         """
         Test the model
 
         :param test_df: test dataframe
+        :param regex: regex to use to get the columns
 
         :return:
             loss - the error of the model.
@@ -93,7 +95,7 @@ class NeuralNetwork(IArtificialIntelligence):
         """
 
         # Get the the columns that start with 'Amplitude' and suffix with a number
-        amplitude_names = df_test.filter(regex='PC\d+').columns
+        amplitude_names = df_test.filter(regex=regex).columns
         amplitudes = df_test[amplitude_names].values
 
         # Turn amplitudes into a tensor
@@ -116,17 +118,18 @@ class NeuralNetwork(IArtificialIntelligence):
 
         return loss, accuracy, precision, recall
     
-    def predict(self, df):
+    def predict(self, df, regex):
         """
         Predict the class of each window
 
         :param df: dataframe
+        :param regex: regex to use to get the columns
 
         :return: predictions
         """
 
         # Get the the columns that start with 'Amplitude' and suffix with a number
-        amplitude_names = df.filter(regex='PC\d+').columns
+        amplitude_names = df.filter(regex=regex).columns
         amplitudes = df[amplitude_names].values
 
         # turn amplitudes into a tensor

@@ -548,21 +548,19 @@ def principleComponentAnalysis(df_train, df_predictions, n_components=6):
 
     # Add the columns that do not have the name 'Amplitude' to the dataframe
     # such as the Time column and the one-hot encoded label columns.
-    train_column_names = df_train.columns.difference(train_amplitude_names)
-    df_train_pca = pd.concat([
+    df_train = pd.concat([
         df_train_pca,
-        df_train[train_column_names]
+        df_train.reset_index(drop=True)
     ], axis=1)
 
     # Add the columns that do not have the name 'Amplitude' to the dataframe
     # such as the Time column and the one-hot encoded label columns.
-    predi_column_names = df_predictions.columns.difference(predi_amplitude_names)
-    df_predi_pca = pd.concat([
+    df_predictions = pd.concat([
         df_predi_pca,
-        df_predictions[predi_column_names].reset_index(drop=True)
+        df_predictions.reset_index(drop=True)
     ], axis=1)
 
-    return df_train_pca, df_predi_pca
+    return df_train, df_predictions
 
 def getTrainAndTestData(df, train_size):
     """
@@ -586,7 +584,7 @@ def getTrainAndTestData(df, train_size):
 
     return df_train, df_test
 
-def postProcessData(df, predictions, filepath):
+def postProcessData(df, predictions, filepath, peak_window_radius):
     """
     Post process the predictions
     

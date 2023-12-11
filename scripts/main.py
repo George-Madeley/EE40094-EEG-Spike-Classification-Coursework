@@ -50,7 +50,7 @@ def run(filepath, noisePower, peak_threshold, low_cutoff_freq, high_cutoff_freq)
     sampling_freq = 25000
     training_partition = 1
 
-    d, index, label = pp.loadTrainingData()
+    d, index, label = pp.loadData("./data/D1.mat")
     # Preprocess the data
     df = pp.preprocessTrainingData(
         d,
@@ -87,7 +87,7 @@ def run(filepath, noisePower, peak_threshold, low_cutoff_freq, high_cutoff_freq)
     # D6.mat
     print(f'Predicting {filename}...')
     # Load the data
-    d = pp.loadPredictionData(filepath)
+    d = pp.loadData(filepath)
 
     # Preprocess the data
     df_prediction = pp.preprocessPredictionData(

@@ -5,38 +5,13 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 from scipy.signal import butter, lfilter
 
-def loadTrainingData():
+def loadData(filepath):
     """
     Load the data from the D1.mat file.
-    
-    :return: d, index, label
-    """
-
-
-    # Get the path to the data
-    dataset_path = "./data/D1.mat"
-
-    # load the data
-    data = sio.loadmat(dataset_path, squeeze_me=True)
-
-    # d is the raw time domain recording (1,440,000) 25kHz samlping frequency
-    d = data.get('d')
-    # index is the location in the recording of the start of each spike
-    index = data.get('Index')
-    # label is the class of each spike (1, 2, 3, 4, or 5), i.e. the type of
-    # neuron that fired it
-    label = data.get('Class')
-
-    # return the data
-    return d, index, label
-
-def loadPredictionData(filepath):
-    """
-    Load the data from the given filepath.
 
     :param filepath: filepath
     
-    :return: d
+    :return: d, index, label
     """
 
     # load the data
@@ -44,9 +19,17 @@ def loadPredictionData(filepath):
 
     # d is the raw time domain recording (1,440,000) 25kHz samlping frequency
     d = data.get('d')
+    # index is the location in the recording of the start of each spike
+    index = data.get('Index', None)
+    # label is the class of each spike (1, 2, 3, 4, or 5), i.e. the type of
+    # neuron that fired it
+    label = data.get('Class', None)
+
+    if index is None and label is None:
+        return d
 
     # return the data
-    return d
+    return d, index, label
 
 def savePredictions(filepath, predictions, predictions_indicies):
     """

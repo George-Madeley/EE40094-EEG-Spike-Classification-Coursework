@@ -65,39 +65,22 @@ def preprocessTrainingData(d, index, label, low_cutoff_freq=1000, high_cutoff_fr
 
     
     df = createDataFrame(d, index, label)
+    # filter the data. Filtering can cause the amplitudes to decrease in
+    # power so the data is normalized again.
+    df_low_filtered = bandPassFilter(df, low_cutoff_freq, sampling_freq)
 
-    # normalize the data
-    df_norm = normalizeAmplitudes(df)
+    df_filtered = normalizeAmplitudes(df_low_filtered)
+    # Split the data into windows
+    df_windows = createWindows(df_filtered, peak_window_radius, search_window_size)
 
-    dataFrames = []
-    for noisePowers in noisePowers:
-        # add noise to the data
-        df_noise = addNoise(df_norm, noisePowers)
-        # filter the data. Filtering can cause the amplitudes to decrease in
-        # power so the data is normalized again.
-        df_low_filtered = lowPassFilter(df_noise, low_cutoff_freq, sampling_freq)
-        # df_high_filtered = highPassFilter(df_low_filtered, high_cutoff_freq, sampling_freq)
-        df_filtered = normalizeAmplitudes(df_low_filtered)
-        # Split the data into windows
-        df_windows = createWindows(df_filtered, peak_window_radius, search_window_size)
+    df_noDuplicates = filterDuplicates(df_windows)
 
-        # Normalize the mean of the data
-        df_windows = normalizeWindows(df_windows)
+    df_sorted = sortWindows(df_noDuplicates, peak_window_radius)
 
-        df_noDuplicates = filterDuplicates(df_windows)
+    # Unbias the data
+    df_unbias = unbiasData(df_sorted, zero_bias_coefficient=8)
 
-        df_sorted = sortWindows(df_noDuplicates, peak_window_radius)
-
-        # Unbias the data
-        df_unbias = unbiasData(df_sorted, zero_bias_coefficient=8)
-
-        # plotWindows(df_unbias, peak_window_radius, f'D1 - {noiseFactors}% Noise')
-
-        # add the dataframe to the list of dataframes
-        dataFrames.append(df_unbias)
-
-    # concat the dataframes
-    df = pd.concat(dataFrames)
+    # plotWindows(df_unbias, peak_window_radius, f'D1 - {noiseFactors}% Noise')
 
     # shuffle the dataframe
     df = df.sample(frac=1).reset_index(drop=True)
@@ -194,37 +177,20 @@ def createDataFrame(d, index=None, label=None, sampling_freq=25000):
 
 def normalizeAmplitudes(df):
     """
-    Normalize the amplitudes so that they are between -1 and 1 by dividing the
-    amplitudes by the maximum amplitude value.
-    
-    :param df: dataframe
-    
-    :return: dataframe
-    """
-    # normalize the amplitude column so that the values are between -1 and 1 by
-    # dividing by the maximum value
-    df['Amplitude'] = df['Amplitude'] / df['Amplitude'].max()
+    Normalize the amplitudes so that they are between 0 and 1.
 
     return df
-
-def normalizeWindows(df):
     """
-    Normalize the amplitudes so that they have a mean of 0.
-    
-    :param df: dataframe
 
-    :return: dataframe
-    """
-    # Get the amplitude columns
-    amplitude_names = df.filter(regex='Amplitude\d+').columns
-
-    # Get the amplitude values
-    amplitudes = df[amplitude_names].values
+    amplitudes = df['Amplitude'].values
 
     # Minus the minimum value from the amplitudes
     amplitudes = amplitudes - amplitudes.min(axis=1).reshape(-1, 1)
 
-    df[amplitude_names] = amplitudes
+    # Divide the amplitudes by the maximum value
+    amplitudes = amplitudes / amplitudes.max(axis=1).reshape(-1, 1)
+
+    df['Amplitude'] = amplitudes
 
     return df
 

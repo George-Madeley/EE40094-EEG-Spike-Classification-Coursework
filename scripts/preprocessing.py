@@ -559,7 +559,7 @@ def principleComponentAnalysis(df_train, df_predictions, n_components=6):
     predi_column_names = df_predictions.columns.difference(predi_amplitude_names)
     df_predi_pca = pd.concat([
         df_predi_pca,
-        df_predictions[predi_column_names]
+        df_predictions[predi_column_names].reset_index(drop=True)
     ], axis=1)
 
     return df_train_pca, df_predi_pca

@@ -4,7 +4,6 @@ from keras.metrics import Precision, Recall
 from keras.optimizers import Adam
 from keras.callbacks import EarlyStopping
 
-import numpy as np
 import tensorflow as tf
 
 from IArtificialIntelligence import IArtificialIntelligence

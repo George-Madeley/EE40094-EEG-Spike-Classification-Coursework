@@ -1,4 +1,5 @@
-import machineLearning as ml
+from models.neuralNetwork import NeuralNetwork
+from models.kNearestNeighbor import KNearestNeighbor
 from preprocessing import preprocessData, postProcessData
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
@@ -40,7 +41,7 @@ def run(filepath):
     numInputs = len(df_train.filter(regex='PC\d+').columns)
     
     # Create the model
-    model = ml.NeuralNetwork(numInputs, numOutputs)
+    model = NeuralNetwork(numInputs, numOutputs)
 
     # Train the model
     model.train(df_train, batch_size, epochs)

@@ -62,7 +62,7 @@ def savePredictions(filepath, predictions, predictions_indicies):
     # save the predictions as a .mat file
     sio.savemat(filepath, {'Class': predictions, 'Index': predictions_indicies})
 
-def preprocessTrainingData(d, index, label, low_cutoff_freq=1000, high_cutoff_freq=1000, sampling_freq=25000, peak_window_radius=50, search_window_size=100, noisePower=0):
+def preprocessTrainingData(d, index, label, low_cutoff_freq=1000, high_cutoff_freq=1000, sampling_freq=25000, peak_window_radius=50, search_window_size=100, noisePowers=None):
     """
     Preprocess the data
     
@@ -75,7 +75,7 @@ def preprocessTrainingData(d, index, label, low_cutoff_freq=1000, high_cutoff_fr
     :param sampling_freq: sampling frequency
     :param peak_window_radius: peak window radius
     :param search_window_size: search window size
-    :param noisePower: Percentage of the maximum amplitude value to add as noise
+    :param noisePowers: Percentage of the maximum amplitude value to add as noise
 
     :return: df
     """
@@ -87,9 +87,9 @@ def preprocessTrainingData(d, index, label, low_cutoff_freq=1000, high_cutoff_fr
     df_norm = normalizeAmplitudes(df)
 
     dataFrames = []
-    for noiseFactors in [0, noisePower]:
+    for noisePowers in noisePowers:
         # add noise to the data
-        df_noise = addNoise(df_norm, noiseFactors)
+        df_noise = addNoise(df_norm, noisePowers)
         # filter the data. Filtering can cause the amplitudes to decrease in
         # power so the data is normalized again.
         df_low_filtered = lowPassFilter(df_noise, low_cutoff_freq, sampling_freq)
@@ -105,10 +105,10 @@ def preprocessTrainingData(d, index, label, low_cutoff_freq=1000, high_cutoff_fr
 
         df_sorted = sortWindows(df_noDuplicates, peak_window_radius)
 
-        # plotWindows(df_sorted, peak_window_radius, f'D1 - {noiseFactors}% Noise')
-
         # Unbias the data
-        df_unbias = unbiasData(df_sorted)
+        df_unbias = unbiasData(df_sorted, zero_bias_coefficient=8)
+
+        # plotWindows(df_unbias, peak_window_radius, f'D1 - {noiseFactors}% Noise')
 
         # add the dataframe to the list of dataframes
         dataFrames.append(df_unbias)
@@ -782,4 +782,7 @@ def plotWindows(df, window_size, title):
         plt.xlabel('Window Index')
         plt.ylabel('Amplitude')
         plt.title(f'Class {label}')
+
+    plt.tight_layout()
+    
     plt.show()

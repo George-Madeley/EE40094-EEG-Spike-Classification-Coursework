@@ -17,17 +17,23 @@ def main():
     high_cutoff_freqs = [100, 100, 100, 100, 100]
 
     # Create a list of the SNR values to use for each dataset
-    noisePowers = [20, 40, 60, 80, 100]
+    noisePowers = [
+        [0, 0, 30],
+        [0, 40],
+        [0, 60],
+        [0, 80],
+        [0, 100]
+    ]
 
     # Create a list of the data files to use for each dataset
     data_files = [
-        './data/D2.mat',
-        './data/D3.mat',
+        # './data/D2.mat',
+        # './data/D3.mat',
         './data/D4.mat', 
-        './data/D5.mat', 
-        './data/D6.mat'
+        # './data/D5.mat', 
+        # './data/D6.mat'
     ]
-    for i in range(5):
+    for i in range(len(data_files)):
         peak_threshold = peak_thresholds[i]
         low_cutoff_freq = low_cutoff_freqs[i]
         high_cutoff_freq = high_cutoff_freqs[i]
@@ -38,7 +44,7 @@ def main():
 
 def run(filepath, noisePower, peak_threshold, low_cutoff_freq, high_cutoff_freq):
     batch_size = 100
-    peak_window_radius = 20
+    peak_window_radius = 30
     search_window_size = 100
     epochs = 100
     sampling_freq = 25000

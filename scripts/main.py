@@ -37,7 +37,7 @@ def run(filepath):
     # Get the number of possible outputs
     numOutputs = len(df_train['Label'].unique())
     # get the number of possible inputs
-    numInputs = len(df_train.filter(regex='PCA\d+').columns)
+    numInputs = len(df_train.filter(regex='PC\d+').columns)
     
     # Create the model
     model = ml.NeuralNetwork(numInputs, numOutputs)

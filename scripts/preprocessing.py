@@ -27,31 +27,31 @@ def preprocessData(filepath, sampling_freq=25000, peak_window_radius=50, search_
     df_predi = createDataFrame(d)
 
     # filter the data
-    df_train = bandPassFilter(df_train, sampling_freq)
-    df_predi = bandPassFilter(df_predi, sampling_freq)
+    df_train = bandPassFilter(df_train)
+    df_predi = bandPassFilter(df_predi)
 
     # Normalize the data
     df_train = normalizeAmplitudes(df_train)
     df_predi = normalizeAmplitudes(df_predi)
 
     # Split the data into windows
-    df_train = createWindows(df_train, peak_window_radius, search_window_size)
+    df_train = createWindows(df_train, peak_window_radius, search_window_size, peak_threshold=0)
     df_predi = createWindows(df_predi, peak_window_radius, search_window_size)
 
     # Remove any duplicate windows from the data
     df_train = removeDuplicates(df_train)
     df_predi = removeDuplicates(df_predi)
+ 
+    # Unbias the data
+    df_train = unbiasData(df_train, zero_bias_coefficient=1)
+    
+    # shuffle the dataframe
+    df_train = df_train.sample(frac=1).reset_index(drop=True)
 
     # Perform PCA on the data
     df_train, df_predi = principleComponentAnalysis(df_train, df_predi)
 
-    # Unbias the data
-    df_train = unbiasData(df_train, zero_bias_coefficient=1)
-
     # plotWindows(df_unbias, peak_window_radius, f'D1 - {noiseFactors}% Noise')
-
-    # shuffle the dataframe
-    df_train = df_train.sample(frac=1).reset_index(drop=True)
 
     return df_train, df_predi
 
@@ -126,18 +126,17 @@ def createDataFrame(d, index=None, label=None, sampling_freq=25000):
     # return the dataframe
     return df
 
-def bandPassFilter(df, sampling_freq, order=2):
+def bandPassFilter(df, order=2):
     """
     Band pass filter the data
     
     :param df: dataframe
-    :param sampling_freq: sampling frequency
     :param order: order
     
     :return: dataframe
     """
     # Create the filter
-    b, a = butter(order, [0.005, 0.05], btype='band', analog=False, fs=sampling_freq)
+    b, a = butter(order, [0.005, 0.05], btype='band', analog=False)
 
     # Get the amplitude column
     amplitudes = df['Amplitude'].values
@@ -149,15 +148,12 @@ def bandPassFilter(df, sampling_freq, order=2):
 
 def normalizeAmplitudes(df):
     """
-    Normalize the amplitudes so that they are between 0 and 1.
+    Normalize the amplitudes so that they are between -1 and 1.
 
     return df
     """
 
     amplitudes = df['Amplitude'].values
-
-    # Minus the minimum value from the amplitudes
-    amplitudes = amplitudes - amplitudes.min()
 
     # Divide the amplitudes by the maximum value
     amplitudes = amplitudes / amplitudes.max()
@@ -204,13 +200,14 @@ def addNoise(df, noisePower):
 
     return df_noise
 
-def createWindows(df, peak_window_radius, search_window_size):
+def createWindows(df, peak_window_radius, search_window_size, peak_threshold=0.1):
     """
     Create windows around the peaks in the data.
     
     :param df: dataframe
     :param peak_window_radius: peak window radius
     :param search_window_size: search window size
+    :param peak_threshold: peak threshold
     
     :return: dataframe
     """
@@ -275,7 +272,8 @@ def createWindows(df, peak_window_radius, search_window_size):
     # the peak threshold.
     highlight_peaks = np.where(
         (df_windows > df_windows_before) &
-        (df_windows > df_windows_after),
+        (df_windows > df_windows_after) &
+        (df_windows > peak_threshold),
         df_windows,
         df_windows * 0
     )
@@ -436,63 +434,6 @@ def removeDuplicates(df_windows):
     df_noDuplicates = pd.concat([df_not_null, df_null])
     return df_noDuplicates
 
-def principleComponentAnalysis(df_train, df_predi, n_components=5):
-    """
-    Perform principle component analysis on the data
-    
-    :param df_train: dataframe
-    :param df_predi: dataframe
-    :param n_components: number of components
-    
-    :return: dataframe
-    """
-
-    # Get the columns that start with 'Amplitude' and suffix with a number
-    train_amplitude_names = df_train.filter(regex='Amplitude\d+').columns
-    train_amplitudes = df_train[train_amplitude_names].values
-
-    # Get the columns that start with 'Amplitude' and suffix with a number
-    predi_amplitude_names = df_predi.filter(regex='Amplitude\d+').columns
-    predi_amplitudes = df_predi[predi_amplitude_names].values
-
-    # Create a PCA model
-    pca = PCA(n_components=n_components)
-
-    # Fit the model to the data
-    pca.fit(train_amplitudes)
-
-    # Get the principle components for each window
-    train_principle_components = pca.fit_transform(train_amplitudes)
-    predi_principle_components = pca.transform(predi_amplitudes)
-
-    # Create a dataframe with the principle components
-    df_train_pca = pd.DataFrame(
-        data=train_principle_components,
-        columns=[f'PC{i}' for i in range(n_components)]
-    )
-    df_predi_pca = pd.DataFrame(
-        data=predi_principle_components,
-        columns=[f'PC{i}' for i in range(n_components)]
-    )
-
-    # Add the columns that do not have the name 'Amplitude' to the dataframe
-    # such as the Time column and the one-hot encoded label columns.
-    train_column_names = df_train.columns.difference(train_amplitude_names)
-    df_train_pca = pd.concat([
-        df_train_pca,
-        df_train[train_column_names]
-    ], axis=1)
-
-    # Add the columns that do not have the name 'Amplitude' to the dataframe
-    # such as the Time column and the one-hot encoded label columns.
-    predi_column_names = df_predi.columns.difference(predi_amplitude_names)
-    df_predi_pca = pd.concat([
-        df_predi_pca,
-        df_predi[predi_column_names]
-    ], axis=1)
-
-    return df_train_pca, df_predi_pca
-
 def unbiasData(df, zero_bias_coefficient=1):
     """
     Unbias the data by keeping the number of windows for each label the same.
@@ -563,6 +504,63 @@ def unbiasData(df, zero_bias_coefficient=1):
 
     return df
 
+def principleComponentAnalysis(df_train, df_predictions, n_components=6):
+    """
+    Perform principle component analysis on the data
+    
+    :param df_train: dataframe
+    :param df_predi: dataframe
+    :param n_components: number of components
+    
+    :return: dataframe
+    """
+
+    # Get the columns that start with 'Amplitude' and suffix with a number
+    train_amplitude_names = df_train.filter(regex='Amplitude\d+').columns
+    train_amplitudes = df_train[train_amplitude_names].values
+
+    # Get the columns that start with 'Amplitude' and suffix with a number
+    predi_amplitude_names = df_predictions.filter(regex='Amplitude\d+').columns
+    predi_amplitudes = df_predictions[predi_amplitude_names].values
+
+    # Create a PCA model
+    pca = PCA(n_components=n_components)
+
+    # Fit the model to the data
+    pca.fit(train_amplitudes)
+
+    # Get the principle components for each window
+    train_principle_components = pca.fit_transform(train_amplitudes)
+    predi_principle_components = pca.transform(predi_amplitudes)
+
+    # Create a dataframe with the principle components
+    df_train_pca = pd.DataFrame(
+        data=train_principle_components,
+        columns=[f'PC{i}' for i in range(n_components)]
+    )
+    df_predi_pca = pd.DataFrame(
+        data=predi_principle_components,
+        columns=[f'PC{i}' for i in range(n_components)]
+    )
+
+    # Add the columns that do not have the name 'Amplitude' to the dataframe
+    # such as the Time column and the one-hot encoded label columns.
+    train_column_names = df_train.columns.difference(train_amplitude_names)
+    df_train_pca = pd.concat([
+        df_train_pca,
+        df_train[train_column_names]
+    ], axis=1)
+
+    # Add the columns that do not have the name 'Amplitude' to the dataframe
+    # such as the Time column and the one-hot encoded label columns.
+    predi_column_names = df_predictions.columns.difference(predi_amplitude_names)
+    df_predi_pca = pd.concat([
+        df_predi_pca,
+        df_predictions[predi_column_names]
+    ], axis=1)
+
+    return df_train_pca, df_predi_pca
+
 def getTrainAndTestData(df, train_size):
     """
     Split the data into training and test sets.
@@ -602,16 +600,16 @@ def postProcessData(df, predictions, filepath):
     df['Label'] = prediction_labels
 
     # Filter out the windows that are labelled as 0
-    df_predictions = df_predictions[df_predictions['Label'] != 0]
+    df = df[df['Label'] != 0]
 
     # Get the indicies of the predictions
-    prediction_indicies = df_predictions.index.values
-    prediction_labels = df_predictions['Label'].values
+    prediction_indicies = df.index.values
+    prediction_labels = df['Label'].values
 
     # Save the predictions
-    savePredictions(filepath, predictions, prediction_indicies)
+    savePredictions(filepath, prediction_labels, prediction_indicies)
 
-def savePredictions(filepath, predictions, predictions_indicies):
+def savePredictions(filepath, prediction_labels, prediction_indicies):
     """
     Save the predictions to the given filepath.
 
@@ -623,7 +621,7 @@ def savePredictions(filepath, predictions, predictions_indicies):
     """
 
     # save the predictions as a .mat file
-    sio.savemat(filepath, {'Class': predictions, 'Index': predictions_indicies})
+    sio.savemat(filepath, {'Class': prediction_labels, 'Index': prediction_indicies})
 
 def plotTimeDomain(df, num_samples_plot=5000, label='Raw'):
     """

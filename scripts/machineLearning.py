@@ -55,7 +55,7 @@ class NeuralNetwork(IArtificialIntelligence):
         """
 
         # Get the the columns that start with 'Amplitude' and suffix with a number
-        amplitude_names = df_train.filter(regex='PCA\d+').columns
+        amplitude_names = df_train.filter(regex='PC\d+').columns
         amplitudes = df_train[amplitude_names].values
 
         # turn amplitudes into a tensor
@@ -94,7 +94,7 @@ class NeuralNetwork(IArtificialIntelligence):
         """
 
         # Get the the columns that start with 'Amplitude' and suffix with a number
-        amplitude_names = df_test.filter(regex='PCA\d+').columns
+        amplitude_names = df_test.filter(regex='PC\d+').columns
         amplitudes = df_test[amplitude_names].values
 
         # Turn amplitudes into a tensor
@@ -127,7 +127,7 @@ class NeuralNetwork(IArtificialIntelligence):
         """
 
         # Get the the columns that start with 'Amplitude' and suffix with a number
-        amplitude_names = df.filter(regex='PCA\d+').columns
+        amplitude_names = df.filter(regex='PC\d+').columns
         amplitudes = df[amplitude_names].values
 
         # turn amplitudes into a tensor

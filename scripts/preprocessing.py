@@ -68,22 +68,22 @@ def preprocessTrainingData(d, index, label, low_cutoff_freq=1000, high_cutoff_fr
     df = createDataFrame(d, index, label)
 
     # filter the data
-    df_filtered = bandPassFilter(df, sampling_freq)
+    df = bandPassFilter(df, sampling_freq)
 
     # Normalize the data
-    df_normalised = normalizeAmplitudes(df_filtered)
+    df = normalizeAmplitudes(df)
 
     # Split the data into windows
-    df_windows = createWindows(df_filtered, peak_window_radius, search_window_size)
+    df = createWindows(df, peak_window_radius, search_window_size)
 
     # Remove any duplicate windows from the data
-    df_noDuplicates = removeDuplicates(df_windows)
+    df = removeDuplicates(df)
 
     # Perform PCA on the data
-    df_pca = principleComponentAnalysis(df_noDuplicates)
+    df = principleComponentAnalysis(df)
 
     # Unbias the data
-    df_unbias = unbiasData(df_pca, zero_bias_coefficient=8)
+    df = unbiasData(df, zero_bias_coefficient=8)
 
     # plotWindows(df_unbias, peak_window_radius, f'D1 - {noiseFactors}% Noise')
 
@@ -105,22 +105,17 @@ def preprocessPredictionData(d, low_cutoff_freq=1000, high_cutoff_freq=1000, sam
 
     :return: df
     """
+    # Create a dataframe from the data
     df = createDataFrame(d)
 
-    # normalize the data
-    df_norm = normalizeAmplitudes(df)
+    # Filter the data
+    df = bandPassFilter(df, sampling_freq)
 
-    # filter the data. Filtering can cause the amplitudes to decrease in
-    # power so the data is normalized again.
-    df_low_filtered = lowPassFilter(df_norm, low_cutoff_freq, sampling_freq)
-    # df_high_filtered = highPassFilter(df_low_filtered, high_cutoff_freq, sampling_freq)
-    df_filtered = normalizeAmplitudes(df_low_filtered)
+    # Normalize the data
+    df = normalizeAmplitudes(df)
 
     # Split the data into windows
-    df_windows = createWindows(df_filtered, peak_window_radius, search_window_size)
-
-    # Normalize the mean of the data
-    df_windows = normalizeWindows(df_windows)
+    df = createWindows(df, peak_window_radius, search_window_size)
 
     # There are a bunch of duplicate rows in the dataframe. We need to remove
     # these duplicates to get the windows around the peaks. To do this, we
@@ -131,9 +126,6 @@ def preprocessPredictionData(d, low_cutoff_freq=1000, high_cutoff_freq=1000, sam
     # We then remove any remaining duplicates specified by the
     # 'RelativePeakIndex' column.
     df_windows = df_windows.drop_duplicates(subset=['RelativePeakIndex'])
-
-    # Sort the windows by the amplitude of the peak relative to the window.
-    df_sorted = sortWindows(df_windows, peak_window_radius)
 
     return df_sorted
 
@@ -162,22 +154,45 @@ def createDataFrame(d, index=None, label=None, sampling_freq=25000):
     df['Time'] = np.arange(0, len(d)/sampling_freq, 1/sampling_freq)
     df['Amplitude'] = d
 
-    # if index and label are not None then add a label column to the dataframe.
-    if index is not None and label is not None:
-        # add a label column to the dataframe and set all the values to 0
-        df['Label'] = 0
-        # set the values of the label column to the values in the label array at the
-        # locations given by the index array
-        df.loc[index, 'Label'] = label
+    # add a label column to the dataframe and set all the values to 0
+    df['Label'] = 0
 
-        # convert the label column to a one-hot encoded vector
-        labels =  tf.keras.utils.to_categorical(df['Label'])
+    if index is None or label is None:
+        return df
+    
+    # set the values of the label column to the values in the label array at the
+    # locations given by the index array
+    df.loc[index, 'Label'] = label
 
-        # add the one-hot encoded vector to the dataframe
-        for i in range(len(labels[0])):
-            df['Label' + str(i)] = labels[:, i]
+    # convert the label column to a one-hot encoded vector
+    labels =  tf.keras.utils.to_categorical(df['Label'])
+
+    # add the one-hot encoded vector to the dataframe
+    for i in range(len(labels[0])):
+        df['Label' + str(i)] = labels[:, i]
 
     # return the dataframe
+    return df
+
+def bandPassFilter(df, sampling_freq, order=2):
+    """
+    Band pass filter the data
+    
+    :param df: dataframe
+    :param sampling_freq: sampling frequency
+    :param order: order
+    
+    :return: dataframe
+    """
+    # Create the filter
+    b, a = butter(order, [0.005, 0.05], btype='band', analog=False, fs=sampling_freq)
+
+    # Get the amplitude column
+    amplitudes = df['Amplitude'].values
+
+    # Apply the filter to the amplitude column
+    df['Amplitude'] = lfilter(b, a, amplitudes)
+
     return df
 
 def normalizeAmplitudes(df):
@@ -236,27 +251,6 @@ def addNoise(df, noisePower):
     df_noise['Amplitude'] = df_noise['Amplitude'].clip(-1, 1)
 
     return df_noise
-
-def bandPassFilter(df, sampling_freq, order=2):
-    """
-    Band pass filter the data
-    
-    :param df: dataframe
-    :param sampling_freq: sampling frequency
-    :param order: order
-    
-    :return: dataframe
-    """
-    # Create the filter
-    b, a = butter(order, [0.005, 0.05], btype='band', analog=False, fs=sampling_freq)
-
-    # Get the amplitude column
-    amplitudes = df['Amplitude'].values
-
-    # Apply the filter to the amplitude column
-    df['Amplitude'] = lfilter(b, a, amplitudes)
-
-    return df
 
 def createWindows(df, peak_window_radius, search_window_size):
     """
@@ -525,42 +519,6 @@ def principleComponentAnalysis(df, n_components=5):
     df_pca = pd.concat([df_pca, df[column_names]], axis=1)
 
     return df_pca
-
-def sortWindows(df, peak_window_radius):
-    """
-    Sort each window in the dataframe by the amplitude of the peak relative to
-    the window.
-    
-    :param df: dataframe
-    :param peak_window_radius: peak window radius
-    
-    :return: dataframe
-    """
-    
-    # We now need to order the windows based the height. The height of the window
-    # is the difference between the peak and the minimum value in the window.
-    # We then sort the windows by the height in descending order. This ensures
-    # that the windows with the largest peaks are at the top of the dataframe.
-
-    # Create a copy of the dataframe
-    df_sorted = df.copy()
-
-    # Get peak values for each row
-    peak_values = df_sorted.filter(regex='Amplitude\d+').values[:, peak_window_radius]
-
-    # Get the minimum values for each row
-    min_values = df_sorted.filter(regex='Amplitude\d+').values.min(axis=1)
-
-    # Get the height of each window
-    heights = peak_values - min_values
-
-    # Add the height column to the dataframe
-    df_sorted['Height'] = heights
-
-    # Sort the dataframe by the height column in descending order
-    df_sorted = df_sorted.sort_values(by='Height', ascending=False)
-
-    return df_sorted
 
 def unbiasData(df, zero_bias_coefficient=1):
     """

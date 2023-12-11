@@ -27,7 +27,7 @@ class NeuralNetwork(IArtificialIntelligence):
         """
 
         model = Sequential()
-        model.add(InputLayer(input_shape=(numInputs, 1)))
+        model.add(InputLayer(input_shape=(numInputs,)))
         model.add(Dense(60, activation='sigmoid'))
         model.add(Dense(30, activation='sigmoid'))
         model.add(Dense(numOutputs, activation='softmax'))
@@ -58,8 +58,6 @@ class NeuralNetwork(IArtificialIntelligence):
         amplitude_names = df_train.filter(regex='PCA\d+').columns
         amplitudes = df_train[amplitude_names].values
 
-        # Add a dimension to the amplitudes array for the convolutional layer
-        amplitudes = np.expand_dims(amplitudes, axis=2)
         # turn amplitudes into a tensor
         amplitudes = tf.convert_to_tensor(amplitudes, dtype=tf.float32)
 
@@ -99,9 +97,6 @@ class NeuralNetwork(IArtificialIntelligence):
         amplitude_names = df_test.filter(regex='PCA\d+').columns
         amplitudes = df_test[amplitude_names].values
 
-        # Add a dimension to the amplitudes array for the convolutional layer
-        amplitudes = np.expand_dims(amplitudes, axis=2)
-
         # Turn amplitudes into a tensor
         amplitudes = tf.convert_to_tensor(amplitudes, dtype=tf.float32)
 
@@ -134,9 +129,6 @@ class NeuralNetwork(IArtificialIntelligence):
         # Get the the columns that start with 'Amplitude' and suffix with a number
         amplitude_names = df.filter(regex='PCA\d+').columns
         amplitudes = df[amplitude_names].values
-
-        # Add a dimension to the amplitudes array for the convolutional layer
-        amplitudes = np.expand_dims(amplitudes, axis=2)
 
         # turn amplitudes into a tensor
         amplitudes = tf.convert_to_tensor(amplitudes, dtype=tf.float32)

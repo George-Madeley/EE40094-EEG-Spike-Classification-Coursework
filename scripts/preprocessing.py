@@ -585,6 +585,32 @@ def getTrainAndTestData(df, train_size):
 
     return df_train, df_test
 
+def postProcessData(df, predictions, filepath):
+    """
+    Post process the predictions
+    
+    :param df: dataframe
+    :param predictions: predictions
+    
+    :return: None
+    """
+    
+    # Find the class with the highest probability
+    prediction_labels = predictions.argmax(axis=1)
+
+    # Create a dataframe of the predictions
+    df['Label'] = prediction_labels
+
+    # Filter out the windows that are labelled as 0
+    df_predictions = df_predictions[df_predictions['Label'] != 0]
+
+    # Get the indicies of the predictions
+    prediction_indicies = df_predictions.index.values
+    prediction_labels = df_predictions['Label'].values
+
+    # Save the predictions
+    savePredictions(filepath, predictions, prediction_indicies)
+
 def savePredictions(filepath, predictions, predictions_indicies):
     """
     Save the predictions to the given filepath.

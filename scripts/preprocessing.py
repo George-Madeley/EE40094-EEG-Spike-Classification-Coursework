@@ -157,10 +157,10 @@ def normalizeAmplitudes(df):
     amplitudes = df['Amplitude'].values
 
     # Minus the minimum value from the amplitudes
-    amplitudes = amplitudes - amplitudes.min(axis=1).reshape(-1, 1)
+    amplitudes = amplitudes - amplitudes.min()
 
     # Divide the amplitudes by the maximum value
-    amplitudes = amplitudes / amplitudes.max(axis=1).reshape(-1, 1)
+    amplitudes = amplitudes / amplitudes.max()
 
     df['Amplitude'] = amplitudes
 

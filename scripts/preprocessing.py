@@ -4,6 +4,7 @@ import scipy.io as sio
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from scipy.signal import butter, lfilter
+from sklearn.decomposition import PCA
 
 def loadData(filepath):
     """
@@ -75,12 +76,14 @@ def preprocessTrainingData(d, index, label, low_cutoff_freq=1000, high_cutoff_fr
     # Split the data into windows
     df_windows = createWindows(df_filtered, peak_window_radius, search_window_size)
 
+    # Remove any duplicate windows from the data
     df_noDuplicates = removeDuplicates(df_windows)
 
-    df_sorted = sortWindows(df_noDuplicates, peak_window_radius)
+    # Perform PCA on the data
+    df_pca = principleComponentAnalysis(df_noDuplicates)
 
     # Unbias the data
-    df_unbias = unbiasData(df_sorted, zero_bias_coefficient=8)
+    df_unbias = unbiasData(df_pca, zero_bias_coefficient=8)
 
     # plotWindows(df_unbias, peak_window_radius, f'D1 - {noiseFactors}% Noise')
 
@@ -488,6 +491,41 @@ def removeDuplicates(df_windows):
     df_noDuplicates = pd.concat([df_not_null, df_null])
     return df_noDuplicates
 
+def principleComponentAnalysis(df, n_components=5):
+    """
+    Perform principle component analysis on the data
+    
+    :param df: dataframe
+    
+    :return: dataframe
+    """
+
+    # Get the columns that start with 'Amplitude' and suffix with a number
+    amplitude_names = df.filter(regex='Amplitude\d+').columns
+    amplitudes = df[amplitude_names].values
+
+    # Create a PCA model
+    pca = PCA(n_components=n_components)
+
+    # Fit the model to the data
+    pca.fit(amplitudes)
+
+    # Get the principle components for each window
+    principle_components = pca.fit_transform(amplitudes)
+
+    # Create a dataframe with the principle components
+    df_pca = pd.DataFrame(
+        data=principle_components,
+        columns=[f'PC{i}' for i in range(n_components)]
+    )
+
+    # Add the columns that do not have the name 'Amplitude' to the dataframe
+    # df_windows such as the Time column and the one-hot encoded label columns.
+    column_names = df.columns.difference(amplitude_names)
+    df_pca = pd.concat([df_pca, df[column_names]], axis=1)
+
+    return df_pca
+
 def sortWindows(df, peak_window_radius):
     """
     Sort each window in the dataframe by the amplitude of the peak relative to
@@ -524,7 +562,7 @@ def sortWindows(df, peak_window_radius):
 
     return df_sorted
 
-def unbiasData(df, zero_bias_coefficient=8):
+def unbiasData(df, zero_bias_coefficient=1):
     """
     Unbias the data by keeping the number of windows for each label the same.
     

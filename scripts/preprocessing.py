@@ -75,7 +75,7 @@ def preprocessTrainingData(d, index, label, low_cutoff_freq=1000, high_cutoff_fr
     # Split the data into windows
     df_windows = createWindows(df_filtered, peak_window_radius, search_window_size)
 
-    df_noDuplicates = filterDuplicates(df_windows)
+    df_noDuplicates = removeDuplicates(df_windows)
 
     df_sorted = sortWindows(df_noDuplicates, peak_window_radius)
 
@@ -454,7 +454,7 @@ def createWindows(df, peak_window_radius, search_window_size):
 
     return df_windows
 
-def filterDuplicates(df_windows):
+def removeDuplicates(df_windows):
     """
     Filter the duplicates in the dataframe.
     
@@ -465,25 +465,25 @@ def filterDuplicates(df_windows):
     df_null = df_windows[df_windows['Label'] == 0]
     df_not_null = df_windows[df_windows['Label'] != 0]
 
-        # We then remove the rows where there is no peak. This is done by
-        # removing the rows where PeakIndex is 0.
+    # We then remove the rows where there is no peak. This is done by
+    # removing the rows where PeakIndex is 0.
     df_null = df_null[df_null['PeakIndex'] != 0]
-        # We then drop the PeakIndex column
+    # We then drop the PeakIndex column
     df_null = df_null.drop(columns=['PeakIndex'])
-        # We then remove any remaining duplicates specified by the
-        # 'RelativePeakIndex' column.
+    # We then remove any remaining duplicates specified by the
+    # 'RelativePeakIndex' column.
     df_null = df_null.drop_duplicates(subset=['RelativePeakIndex'])
 
-        # There is still a chance that some null labels window are duplicates of
-        # the not null label windows. To remove these duplicates, we get the
-        # 'RelativePeakIndex' column of the df_not_null dataframe and remove any
-        # rows in the df_null dataframe that have the same value in the
-        # 'RelativePeakIndex' column.
+    # There is still a chance that some null labels window are duplicates of
+    # the not null label windows. To remove these duplicates, we get the
+    # 'RelativePeakIndex' column of the df_not_null dataframe and remove any
+    # rows in the df_null dataframe that have the same value in the
+    # 'RelativePeakIndex' column.
     relativePeakIndicies = df_not_null['RelativePeakIndex'].values
     df_null = df_null[~df_null['RelativePeakIndex'].isin(relativePeakIndicies)]
 
-        # We then get the rows where the label is not 0, remove the PeakIndex
-        # column, and combine with the df_null dataframe.
+    # We then get the rows where the label is not 0, remove the PeakIndex
+    # column, and combine with the df_null dataframe.
     df_not_null = df_not_null.drop(columns=['PeakIndex'])
     df_noDuplicates = pd.concat([df_not_null, df_null])
     return df_noDuplicates

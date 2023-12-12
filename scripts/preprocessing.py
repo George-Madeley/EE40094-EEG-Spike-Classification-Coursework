@@ -87,7 +87,7 @@ def preprocessTrainingData(d, index, label, cutoff_freq=1000, sampling_freq=2500
     df_filtered = lowPassFilter(df_norm, cutoff_freq, sampling_freq)
 
     # Split the data into windows
-    df_windows = createWindows(df_filtered, window_size)
+    df_windows = createScanningWindows(df_filtered, window_size)
 
     # Unbias the data
     df_unbias = unbiasData(df_windows)
@@ -114,7 +114,7 @@ def preprocessPredictionData(d, cutoff_freq=1000, sampling_freq=25000, window_si
     df_filtered = lowPassFilter(df_norm, cutoff_freq, sampling_freq)
 
     # Split the data into windows
-    df_windows = createWindows(df_filtered, window_size)
+    df_windows = createScanningWindows(df_filtered, window_size)
 
     return df_windows
 

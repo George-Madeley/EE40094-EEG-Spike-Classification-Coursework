@@ -192,7 +192,7 @@ def normalizeMin(df):
 
     return df
 
-def addNoise(df, noisePower):
+def addNoise(df, noisePercentage):
     """
     Add noise to the data
     
@@ -204,8 +204,8 @@ def addNoise(df, noisePower):
     :raises ValueError: if SNR is not between 0 and 100
     """
 
-    if 0 > noisePower or noisePower > 100:
-        raise ValueError('Noise Power must be between 0 and 100')
+    if 0 > noisePercentage or noisePercentage > 1:
+        raise ValueError('Noise Power must be between 0 and 1')
 
     # Generate a gaussian noise signal with amplitudes ranging from -1 to 1 and
     # a mean of 0 and a standard deviation of 1 and frequencies from 0 to 25kHz
@@ -215,10 +215,8 @@ def addNoise(df, noisePower):
     # Normalize the noise so that the values are between -1 and 1
     noise = noise / noise.max()
 
-    noiseFactor = noisePower / 100
-
     # Multiply the noise by the noise factor
-    noise = noise * noiseFactor
+    noise = noise * noisePercentage
 
     df_noise = df.copy()
 

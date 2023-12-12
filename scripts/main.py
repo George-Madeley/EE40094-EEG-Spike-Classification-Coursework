@@ -18,6 +18,8 @@ def main():
     PCA = regex == 'PC\d+'
     K = 3
 
+    filepath = './data/D2.mat'
+
     df_train, _ = preprocessData(
         filepath,
         sampling_freq=sampling_freq,
@@ -65,7 +67,7 @@ def main():
         
         filepath = os.path.join('results', f'{filename}')
 
-        postProcessData(df_predi, predictions, filepath)
+        postProcessData(df_predi, predictions, filepath, peak_window_radius)
 
 if __name__ == '__main__':
     main()

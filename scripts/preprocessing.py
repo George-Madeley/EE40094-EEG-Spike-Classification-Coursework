@@ -658,7 +658,7 @@ def getTrainAndTestData(df, train_size):
 
     return df_train, df_test
 
-def postProcessData(df, predictions, filepath, peak_window_radius):
+def postProcessData(df, predictions, filepath, peak_window_radius, doPeakDetection=False):
     """
     Post process the predictions
     
@@ -680,7 +680,10 @@ def postProcessData(df, predictions, filepath, peak_window_radius):
     df['Label'] = prediction_labels
 
     # plot the windows
-    plotPeakWindows(df, peak_window_radius, 'Predictions')
+    if doPeakDetection:
+        plotPeakWindows(df, peak_window_radius, 'Predictions')
+    else:
+        plotScanWindows(df, peak_window_radius, 'Predictions')
 
     # Filter out the windows that are labelled as 0
     df = df[df['Label'] != 0]

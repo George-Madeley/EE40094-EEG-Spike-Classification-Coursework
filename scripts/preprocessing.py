@@ -32,36 +32,35 @@ def preprocessData(filepath, sampling_freq=25000, peak_window_radius=50, search_
     df_predi = bandPassFilter(df_predi)
 
     # Normalize the data
-    df_train = normalizeAmplitudes(df_train)
-    df_predi = normalizeAmplitudes(df_predi)
+    df_train = normalizeMax(df_train)
+    df_predi = normalizeMax(df_predi)
 
     # Split the data into windows
     df_train = createWindows(df_train, peak_window_radius, search_window_size, peak_threshold=0)
-    df_predi = createWindows(df_predi, peak_window_radius, search_window_size)
+    df_predi = createWindows(df_predi, peak_window_radius, search_window_size, peak_threshold=0.05)
 
     # Remove any duplicate windows from the data
     df_train = removeDuplicates(df_train)
     df_predi = removeDuplicates(df_predi)
- 
+
     # Normalise the windows so that the amplitudes are between 0 and 1
     df_train = normalizeMin(df_train)
     df_predi = normalizeMin(df_predi)
 
     # Remove any outliers from the data
-    df_train = removeOutliers(df_train, peak_window_radius, threshold=1)
+    df_train = removeOutliers(df_train, peak_window_radius, threshold=4)
  
     # Unbias the data
-    df_train = unbiasData(df_train, bias_coefficients=[10, 1, 1, 1, 1, 1])
-    
+    df_train = unbiasData(df_train, bias_coefficients=[1, 1, 1, 1, 1, 1])
     # shuffle the dataframe
     df_train = df_train.sample(frac=1).reset_index(drop=True)
+
+    plotWindows(df_train, peak_window_radius, 'D1')
 
     if not PCA:
         return df_train, df_predi
     # Perform PCA on the data
     df_train, df_predi = principleComponentAnalysis(df_train, df_predi)
-
-    # plotWindows(df_unbias, peak_window_radius, f'D1 - {noiseFactors}% Noise')
 
     return df_train, df_predi
 
@@ -156,7 +155,7 @@ def bandPassFilter(df, order=2):
 
     return df
 
-def normalizeAmplitudes(df):
+def normalizeMax(df):
     """
     Normalize the amplitudes so that they are between -1 and 1.
 
@@ -484,9 +483,6 @@ def removeOutliers(df, peak_window_radius, threshold=1):
     # less than two standard deviations from the mean of the 'Height' column.
     list_of_groups = []
     for label, group in groups:
-        if label == 0:
-            list_of_groups.append(group)
-            continue
         distance_from_mean = np.abs(group['Height'] - group['Height'].mean())
         outlier_range = threshold * group['Height'].std()
         group = group[distance_from_mean < outlier_range]
@@ -541,13 +537,10 @@ def unbiasData(df, bias_coefficients=None):
         for rep in range(num_reps):
             samples = group.sample(n=min_sum)
             list_of_groups.append(samples)
-            print(f'Label {label}: {rep}')
 
     # Concat the groups together
     df = pd.concat(list_of_groups)
 
-    # We then shuffle the dataframe to ensure that the data is not ordered by
-    # label and therefore does not overfit to a particular label.
     df = df.sample(frac=1).reset_index(drop=True)
 
     return df
@@ -639,11 +632,19 @@ def postProcessData(df, predictions, filepath, peak_window_radius):
     :return: None
     """
     
-    # Find the class with the highest probability
-    prediction_labels = predictions.argmax(axis=1)
+    if predictions.shape[0] != predictions.size:
+        # Find the class with the highest probability
+        prediction_labels = predictions.argmax(axis=1)
+    else:
+        prediction_labels = predictions
+
+    print(dict(zip(*np.unique(prediction_labels, return_counts=True))))
 
     # Create a dataframe of the predictions
     df['Label'] = prediction_labels
+
+    # plot the windows
+    plotWindows(df, peak_window_radius, 'Predictions')
 
     # Filter out the windows that are labelled as 0
     df = df[df['Label'] != 0]

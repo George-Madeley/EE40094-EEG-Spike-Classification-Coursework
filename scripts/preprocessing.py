@@ -51,7 +51,7 @@ def preprocessData(filepath, sampling_freq=25000, peak_window_radius=50, search_
     df_train = removeOutliers(df_train, peak_window_radius, threshold=1)
  
     # Unbias the data
-    df_train = unbiasData(df_train, zero_bias_coefficient=1)
+    df_train = unbiasData(df_train, bias_coefficients=[10, 1, 1, 1, 1, 1])
     
     # shuffle the dataframe
     df_train = df_train.sample(frac=1).reset_index(drop=True)
@@ -502,22 +502,18 @@ def removeOutliers(df, peak_window_radius, threshold=1):
 
     return df
 
-def unbiasData(df, zero_bias_coefficient=1):
+def unbiasData(df, bias_coefficients=None):
     """
     Unbias the data by keeping the number of windows for each label the same.
     
     :param df: dataframe
-    :param zero_bias_coefficient: If the coefficient is 1, then the number of
-                                    windows for the negative label will be the
-                                    same as the number of windows for the
-                                    positive labels. If the coefficient is
-                                    greater than 1, then the number of windows
-                                    for the negative label will be greater than
-                                    the number of windows for the positive and
-                                    vice versa.
+    :param bias_coefficients: bias coefficients
     
     :return: dataframe
     """
+
+    if bias_coefficients is None:
+        bias_coefficients = [1, 1, 1, 1, 1, 1]
 
     # To unbias the data, we need to ensure that all positive labels (i.e., 
     # labels that are not 0) have the same number of windows. This ensures there
@@ -540,32 +536,18 @@ def unbiasData(df, zero_bias_coefficient=1):
     # To unbias the data, we group the rows by the label column. We then
     # randomly select min_sum  number of rows from each group. This ensures that
     # the number of windows for each label is the same.
-    grouped = df.groupby('Label')
-    df_group = grouped.apply(lambda x: x.sample(min_sum)).reset_index(drop=True)
+    groups = df.groupby('Label')
+    list_of_groups = []
+    for label, group in groups:
+        num_reps = int(bias_coefficients[label])
+        for rep in range(num_reps):
+            samples = group.sample(n=min_sum)
+            list_of_groups.append(samples)
+            print(f'Label {label}: {rep}')
 
-    # However, this will result in the number of windows for the negative label
-    # being less than the number of windows for the positive labels. To fix
-    # this, we remove all the rows that have a label of 0. We then randomly
-    # select (min_sum * number of positive labels) number of rows from the
-    # dataframe where the label is 0.
-    df_group = df_group[df_group['Label'] != 0]
-    # calculate the number of lables
-    num_labels = int(len(label_names))
-    # randomly select (min_sum * number of positive labels) number of rows from
-    # the dataframe where the label is 0. We can multiply the zero_bias_coefficient
-    # to get a bias towards the negative label.
-    # Calculate the number of rows with a label of 0
-    num_label0 = df[df['Label'] == 0].shape[0]
-    num_0_samples = min_sum * (num_labels - 1) * zero_bias_coefficient
-    # Riase an error if the number of rows with a label of 0 is less than the
-    # number of negative levels to sample
-    if num_label0 < num_0_samples:
-        raise ValueError('The number of samples with a label of 0 is less than the number of negative levels to sample')
-    df_label0 = df[df['Label'] == 0].sample(min_sum * (num_labels - 1) * zero_bias_coefficient)
+    # Concat the groups together
+    df = pd.concat(list_of_groups)
 
-    # We then concat the two dataframes together to get the unbias dataframe.
-    df = pd.concat([df_group, df_label0])
-    
     # We then shuffle the dataframe to ensure that the data is not ordered by
     # label and therefore does not overfit to a particular label.
     df = df.sample(frac=1).reset_index(drop=True)

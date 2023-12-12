@@ -1,6 +1,5 @@
 from keras.models import Sequential
 from keras.layers import Dense, InputLayer
-from keras.metrics import Precision, Recall
 from keras.optimizers import Adam
 from keras.callbacks import EarlyStopping
 
@@ -37,7 +36,7 @@ class NeuralNetwork(IArtificialIntelligence):
         model.compile(
             loss='categorical_crossentropy',
             optimizer=opt,
-            metrics=['accuracy', Precision(), Recall()]
+            metrics=['accuracy']
         )
 
         return model
@@ -68,8 +67,13 @@ class NeuralNetwork(IArtificialIntelligence):
         # turn labels into a tensor
         labels = tf.convert_to_tensor(labels, dtype=tf.float32)
 
-        # Add early stopping
-        early_stopping = EarlyStopping(monitor='val_precision', patience=20, mode='max')
+        # Add early stopping to stop when the loss begins to increase
+        early_stopping = EarlyStopping(
+            monitor='loss',
+            patience=10,
+            mode='min',
+            restore_best_weights=True
+        )
 
         # Train the model
         self.model.fit(

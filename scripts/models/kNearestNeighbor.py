@@ -15,7 +15,7 @@ class KNearestNeighbor(IArtificialIntelligence):
         :return: model
         """
 
-        model = KNeighborsClassifier(n_neighbors=k)
+        model = KNeighborsClassifier(n_neighbors=k, weights='distance')
 
         return model
 
@@ -30,9 +30,10 @@ class KNearestNeighbor(IArtificialIntelligence):
         amplitude_names = df_train.filter(regex=regex).columns
         amplitudes = df_train[amplitude_names].values
 
-        # Get the columns that start with 'Label' and suffix with a number
-        label_names = df_train.filter(regex='Label').columns
-        labels = df_train[label_names].values
+        # Get the column that start with 'Label' and no suffix
+        label_names = df_train.filter(regex='Label\d+').columns
+        label_names = df_train.filter(regex='Label').columns.difference(label_names)
+        labels = df_train[label_names].values.ravel()
 
         # Train the model
         self.model.fit(amplitudes, labels)
@@ -50,9 +51,10 @@ class KNearestNeighbor(IArtificialIntelligence):
         amplitude_names = df_test.filter(regex=regex).columns
         amplitudes = df_test[amplitude_names].values
 
-        # Get the columns that start with 'Label' and suffix with a number
-        label_names = df_test.filter(regex='Label').columns
-        labels = df_test[label_names].values
+        # Get the column that start with 'Label' and no suffix
+        label_names = df_test.filter(regex='Label\d+').columns
+        label_names = df_test.filter(regex='Label').columns.difference(label_names)
+        labels = df_test[label_names].values.ravel()
 
         # Test the model
         score = self.model.score(amplitudes, labels)
@@ -73,6 +75,6 @@ class KNearestNeighbor(IArtificialIntelligence):
         amplitudes = df_predictions[amplitude_names].values
 
         # Predict the labels
-        predictions = self.model.predict_proba(amplitudes)[0]
+        predictions = self.model.predict_proba(amplitudes)
 
         return predictions

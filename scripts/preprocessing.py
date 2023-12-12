@@ -43,6 +43,13 @@ def preprocessData(filepath, sampling_freq=25000, peak_window_radius=50, search_
     df_train = removeDuplicates(df_train)
     df_predi = removeDuplicates(df_predi)
  
+    # Normalise the windows so that the amplitudes are between 0 and 1
+    df_train = normalizeMin(df_train)
+    df_predi = normalizeMin(df_predi)
+
+    # Remove any outliers from the data
+    df_train = removeOutliers(df_train, peak_window_radius, threshold=1)
+ 
     # Unbias the data
     df_train = unbiasData(df_train, zero_bias_coefficient=1)
     
@@ -456,6 +463,44 @@ def removeDuplicates(df_windows):
     df_not_null = df_not_null.drop(columns=['PeakIndex'])
     df_noDuplicates = pd.concat([df_not_null, df_null])
     return df_noDuplicates
+
+def removeOutliers(df, peak_window_radius, threshold=1):
+    """
+    Remove the outliers from the dataframe
+    
+    :param df: dataframe
+    :param threshold: threshold
+    
+    :return: dataframe
+    """
+
+    # Calculate the relative height of each window. This is the height of the
+    # peak relative to the minimum value in the window.
+    amplitude_names = df.filter(regex='Amplitude\d+').columns
+    peak_amplitude_name = amplitude_names[peak_window_radius]
+    df['Height'] = df[peak_amplitude_name] - df[amplitude_names].min(axis=1)
+
+    groups = df.groupby('Label')
+
+    # For each group, remove the rows where the amplitude is greater than or
+    # less than two standard deviations from the mean of the 'Height' column.
+    list_of_groups = []
+    for label, group in groups:
+        if label == 0:
+            list_of_groups.append(group)
+            continue
+        distance_from_mean = np.abs(group['Height'] - group['Height'].mean())
+        outlier_range = threshold * group['Height'].std()
+        group = group[distance_from_mean < outlier_range]
+        list_of_groups.append(group)
+    
+    # Concat the groups together
+    df = pd.concat(list_of_groups)
+
+    # Drop the 'Height' column
+    df = df.drop(columns=['Height'])
+
+    return df
 
 def unbiasData(df, zero_bias_coefficient=1):
     """

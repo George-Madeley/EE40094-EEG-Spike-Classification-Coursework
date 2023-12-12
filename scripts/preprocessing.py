@@ -278,36 +278,6 @@ def getTrainAndTestData(df, train_size):
 
     return df_train, df_test
 
-def plot_data(index, label, df_norm, df_filtered, num_samples_plot=5000):
-    """
-    Plot the raw and filtered data
-    
-    :param index: the locations in the recording of the start of each spike
-    :param label: the class of each spike (1, 2, 3, 4, or 5), i.e. the type of
-                  neuron that fired it
-    :param df_norm: the normalized dataframe
-    :param df_filtered: the filtered dataframe
-    
-    :return: None
-    """
-    plt.plot(df_norm['Time'][:num_samples_plot],
-             df_norm['Amplitude'][:num_samples_plot],
-             color='blue',
-             label='Raw')
-
-    # Plot the locations of the spikes on to the graph given by the index array.
-    # The marker should be an number given by the label array.
-    indices_plot = index[index < num_samples_plot]
-    labels_plot = label[index < num_samples_plot]
-    plt.scatter(
-        df_norm['Time'][indices_plot],
-        df_norm['Amplitude'][indices_plot],
-        c=labels_plot,
-        cmap='rainbow',
-        label='Spikes',
-        s=100,
-        marker='x'
-    )
 
     
     # plot the filtered data on to a line graph

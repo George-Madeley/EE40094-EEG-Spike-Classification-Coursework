@@ -165,6 +165,26 @@ def normalizeAmplitudes(df):
 
     return df
 
+def normalizeMin(df):
+    """
+    Normalize the amplitudes so that they are between 0 and 1.
+    
+    :param df: dataframe
+    
+    :return: dataframe
+    """
+
+    # Get the the columns that start with 'Amplitude' and suffix with a number
+    amplitude_names = df.filter(regex='Amplitude\d+').columns
+    amplitudes = df[amplitude_names].values
+
+    # Minus the minimum value from the amplitudes
+    amplitudes = amplitudes - amplitudes.min(axis=1).reshape(-1, 1)
+
+    df[amplitude_names] = amplitudes
+
+    return df
+
 def addNoise(df, noisePower):
     """
     Add noise to the data

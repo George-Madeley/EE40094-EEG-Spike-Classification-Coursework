@@ -1,4 +1,4 @@
-from preprocessing import loadPredictionData, createDataFrame, plotFrequencyDomain, lowPassFilter, highPassFilter, normalizeAmplitudes, plotTimeDomain
+from preprocessing import loadPredictionData, createDataFrame, plotFrequencyDomain, lowPassFilter, highPassFilter, normalizeMax, plotTimeDomain
 
 import matplotlib.pyplot as plt
 
@@ -61,7 +61,7 @@ for i, filepath in enumerate(filepaths):
     df = createDataFrame(d)
 
     # Normalize the amplitudes
-    df = normalizeAmplitudes(df)
+    df = normalizeMax(df)
 
     plt.subplot(2, 3, i + 1)
 
@@ -72,7 +72,7 @@ for i, filepath in enumerate(filepaths):
     df = lowPassFilter(df, low_pass_cutoff_freq, sampling_freq=25000)
 
     # Normalize the amplitudes
-    df = normalizeAmplitudes(df)
+    df = normalizeMax(df)
 
     # Plot the low pass filtered data in the frequency domain
     plotTimeDomain(df, num_samples_plot, label='Low Pass Filtered')
@@ -81,7 +81,7 @@ for i, filepath in enumerate(filepaths):
     df = highPassFilter(df, high_pass_cutoff_freq, sampling_freq=25000)
 
     # Normalize the amplitudes
-    df = normalizeAmplitudes(df)
+    df = normalizeMax(df)
 
     # Plot the high pass filtered data in the frequency domain
     plotTimeDomain(df, num_samples_plot, label='High Pass Filtered')

@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import scipy.io as sio
 import numpy as np
 
-from preprocessing import loadPredictionData, createDataFrame, normalizeAmplitudes, highPassFilter, lowPassFilter
+from preprocessing import loadPredictionData, createDataFrame, normalizeMax, highPassFilter, lowPassFilter
 
 results_filepath = './results/D2.mat'
 data_filepath = './data/D2.mat'
@@ -21,13 +21,13 @@ sampling_freq = 25000
 df = createDataFrame(d)
 
 # normalize the data
-df_norm = normalizeAmplitudes(df)
+df_norm = normalizeMax(df)
 
 # filter the data. Filtering can cause the amplitudes to decrease in
 # power so the data is normalized again.
 df_low_filtered = lowPassFilter(df_norm, low_cutoff_freq, sampling_freq)
 # df_high_filtered = highPassFilter(df_low_filtered, high_cutoff_freq, sampling_freq)
-df_filtered = normalizeAmplitudes(df_low_filtered)
+df_filtered = normalizeMax(df_low_filtered)
 
 start_idx = 40000
 num_samples = 10000

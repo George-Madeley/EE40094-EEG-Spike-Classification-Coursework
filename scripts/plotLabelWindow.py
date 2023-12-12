@@ -3,7 +3,7 @@ import scipy.io as sio
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from preprocessing import loadTrainingData, createDataFrame, normalizeAmplitudes, lowPassFilter
+from preprocessing import loadTrainingData, createDataFrame, normalizeMax, lowPassFilter
 
 window_size = 50
 
@@ -12,11 +12,11 @@ d, index, label = loadTrainingData()
 df = createDataFrame(d, index, label)
 
 # Normalize the amplitudes
-df = normalizeAmplitudes(df)
+df = normalizeMax(df)
 
 df = lowPassFilter(df, 1000, 25000)
 
-df = normalizeAmplitudes(df)
+df = normalizeMax(df)
 
 df_window = pd.concat([
     df['Amplitude'].shift(-i, fill_value=0) for i in range(-window_size, window_size)

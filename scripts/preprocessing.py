@@ -201,7 +201,7 @@ def lowPassFilter(df, cutoff_freq, sampling_freq, order=5):
 
     return df_filtered
 
-def createWindows(df, window_size):
+def createScanningWindows(df, window_size):
     """
     Create windows of the data. This is done by creating a dataframe with the
     amplitude column duplicated window_size times. Each amplitude column is
@@ -217,15 +217,13 @@ def createWindows(df, window_size):
 
     # create a dataframe with the amplitude column duplicated window_size times
     # and include a column for the time and label values.
-    df_windows = pd.DataFrame()
-    for i in range(window_size):
-        df_windows['Amplitude' + str(i)] = df['Amplitude'].shift(-i, fill_value=0)
+    df_windows = pd.concat([
+        df['Amplitude'].shift(-i, fill_value=0) for i in range(window_size)
+    ], axis=1)
+    df_windows.columns = [f'Amplitude{i}' for i in range(window_size)]
     
     # add the time and label columns to the dataframe
-    column_names = []
-    for column_name in df.columns:
-        if column_name != 'Amplitude':
-            column_names.append(column_name)
+    column_names = df.columns.difference(['Amplitude'])
     # concat the df_windows and df[column_names] dataframes
     df_windows = pd.concat([df_windows, df[column_names]], axis=1)
 

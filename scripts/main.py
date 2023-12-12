@@ -1,7 +1,7 @@
 from models.neuralNetwork import NeuralNetwork
-import preprocessing as pp
+from models.kNearestNeighbor import KNearestNeighbor
+from preprocessing import preprocessData, postProcessData
 import os
-import csv
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 
@@ -9,77 +9,62 @@ def main():
     """
     Main function
     """
-    d, index, label = pp.loadTrainingData()
+    # Create a list of the data files to use for each dataset
+    filepaths = [
+        './data/D2.mat',
+        './data/D3.mat',
+        './data/D4.mat', 
+        './data/D5.mat', 
+        './data/D6.mat'
+    ]
+    for filepath in filepaths:
+        run(filepath)
+        print("\n\n")
 
-    run(d, index, label, training_partition=0.8)
-
-
-def run(d, index, label):
-    """
-    Test the model
-
-    :param d: data
-    :param index: index
-    :param label: label
-    """
-
-    # Get the keyword arguments
+def run(filepath):
     batch_size = 100
-    window_size = 100
-    epochs = 10
-    cutoff_freq = 1000
+    peak_window_radius = 30
+    search_window_size = 100
+    epochs = 100
     sampling_freq = 25000
-    prediction = False
-    training_partition = 1
+    regex = 'Amplitude\d+'
+    PCA = regex == 'PC\d+'
+    K = 3
 
-    # Preprocess the data
-    df = pp.preprocessTrainingData(
-        d,
-        index,
-        label,
-        cutoff_freq,
-        sampling_freq,
-        window_size
+    df_train, df_predi = preprocessData(
+        filepath,
+        sampling_freq=sampling_freq,
+        peak_window_radius=peak_window_radius,
+        search_window_size=search_window_size,
+        PCA=PCA,
     )
 
-    # Split the data into training and testing sets
-    df_train, df_test = pp.getTrainAndTestData(df, training_partition)
-
     # Get the number of possible outputs
-    numOutputs = len(df['Label'].unique())
-
+    numOutputs = len(df_train['Label'].unique())
+    # get the number of possible inputs
+    numInputs = len(df_train.filter(regex=regex).columns)
+    
     # Create the model
-    model = NeuralNetwork(window_size, numOutputs)
+    model = KNearestNeighbor(K)
 
     # Train the model
-    model.train(df, batch_size, epochs)
+    model.train(df_train, regex)
 
-    # If the training partition is less than 1, then the data was split into
-    # training and testing sets. Therefore, we can test the model.
-    if training_partition < 1:
-        # Test the model
-        model.test(df_test)
+    # Get filename
+    filename = os.path.basename(filepath)
+    print(f'Predicting {filename}...')
+    
+    # Print the number of rows in the dataframe
+    print(f'Number of rows in {filename}.mat: {len(df_predi)}')
 
-    # Predict the labels of the data in D2.mat, D3.mat, D4.mat, D5.mat, and
-    # D6.mat
-    if prediction:
-        for i in range(2, 7):
-            print(f'Predicting D{i}...')
-            # Load the data
-            filepath = os.path.join('data', f'D{i}.mat')
-            d = pp.loadPredictionData(filepath)
+    # Make the predictions
+    predictions = model.predict(df_predi, regex)
+    
+    filepath = os.path.join('results', f'{filename}')
 
-            # Preprocess the data
-            df_prediction = pp.preprocessPredictionData(
-                d, cutoff_freq, sampling_freq, window_size
-            )
+    postProcessData(df_predi, predictions, filepath)
 
-            # Make the predictions
-            predictions = model.predict(df_prediction)
 
-            # Save the predictions
-            filepath = os.path.join('results', f'D{i}.mat')
-            pp.savePredictions(filepath, predictions)
 
 if __name__ == '__main__':
     main()

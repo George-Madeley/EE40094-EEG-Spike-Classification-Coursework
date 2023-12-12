@@ -6,7 +6,7 @@ import tensorflow as tf
 from scipy.signal import butter, lfilter
 from sklearn.decomposition import PCA
 
-def preprocessData(filepath, sampling_freq=25000, peak_window_radius=50, search_window_size=100, PCA=False):
+def preprocessData(filepath, doPeakDetection=False, sampling_freq=25000, peak_window_radius=50, search_window_size=100, PCA=False):
     """
     Preprocess the data
 
@@ -35,27 +35,35 @@ def preprocessData(filepath, sampling_freq=25000, peak_window_radius=50, search_
     df_train = normalizeMax(df_train)
     df_predi = normalizeMax(df_predi)
 
-    # Split the data into windows
-    df_train = createPeakWindows(df_train, peak_window_radius, search_window_size, peak_threshold=0)
-    df_predi = createPeakWindows(df_predi, peak_window_radius, search_window_size, peak_threshold=0.05)
-
-    # Remove any duplicate windows from the data
-    df_train = removeDuplicates(df_train)
-    df_predi = removeDuplicates(df_predi)
+    if doPeakDetection:
+        # Split the data into windows
+        df_train = createPeakWindows(df_train, peak_window_radius, search_window_size, peak_threshold=0)
+        df_predi = createPeakWindows(df_predi, peak_window_radius, search_window_size, peak_threshold=0.05)
+        # Remove any duplicate windows from the data
+        df_train = removeDuplicates(df_train)
+        df_predi = removeDuplicates(df_predi)
+        
+        # Remove any outliers from the data
+        df_train = removeOutliers(df_train, peak_window_radius, threshold=4)
+    else:
+        # Split the data into windows
+        df_train = createScanningWindows(df_train, peak_window_radius)
+        df_predi = createScanningWindows(df_predi, peak_window_radius)
 
     # Normalise the windows so that the amplitudes are between 0 and 1
     df_train = normalizeMin(df_train)
     df_predi = normalizeMin(df_predi)
 
-    # Remove any outliers from the data
-    df_train = removeOutliers(df_train, peak_window_radius, threshold=4)
- 
     # Unbias the data
     df_train = unbiasData(df_train, bias_coefficients=[1, 1, 1, 1, 1, 1])
+
     # shuffle the dataframe
     df_train = df_train.sample(frac=1).reset_index(drop=True)
 
-    plotWindows(df_train, peak_window_radius, 'D1')
+    if doPeakDetection:
+        plotPeakWindows(df_train, peak_window_radius, 'D1')
+    else:
+        plotScanWindows(df_train, peak_window_radius, 'D1')
 
     if not PCA:
         return df_train, df_predi
@@ -672,7 +680,7 @@ def postProcessData(df, predictions, filepath, peak_window_radius):
     df['Label'] = prediction_labels
 
     # plot the windows
-    plotWindows(df, peak_window_radius, 'Predictions')
+    plotPeakWindows(df, peak_window_radius, 'Predictions')
 
     # Filter out the windows that are labelled as 0
     df = df[df['Label'] != 0]
@@ -759,7 +767,7 @@ def plotFrequencyDomain(df, sampling_freq=25000, num_samples_plot=5000, label='R
 
     plt.plot()
 
-def plotWindows(df, window_size, title):
+def plotPeakWindows(df, window_size, title):
     """
     Plot the windows around the peaks.
     
@@ -782,6 +790,37 @@ def plotWindows(df, window_size, title):
         plt.subplot(2, 3, i + 1)
         # plot the amplitudes as the color grey with an alpha of 0.5
         plt.plot(np.arange(-window_size, window_size), amplitudes[:num_plots, :].T, color='grey', alpha=0.1)
+        plt.xlabel('Window Index')
+        plt.ylabel('Amplitude')
+        plt.title(f'Class {label}')
+
+    plt.tight_layout()
+    
+    plt.show()
+
+def plotScanWindows(df, window_size, title):
+    """
+    Plot the windows of the scan.
+    
+    :param df: dataframe
+    :param window_size: window size
+    
+    :return: None
+    """
+    fig, ax = plt.subplots(2, 3)
+    # Set the title of the figure
+    fig.suptitle(title)
+
+    # group the rows by the label column
+    grouped = df.groupby('Label')
+    # plot the first 20 windows for each label on the same graph
+    for i, (label, group) in enumerate(grouped):
+        num_plots = len(group) if len(group) < 1000 else 1000
+        # get the values in the amplitude columns
+        amplitudes = group.filter(regex='Amplitude\d+').values
+        plt.subplot(2, 3, i + 1)
+        # plot the amplitudes as the color grey with an alpha of 0.5
+        plt.plot(np.arange(window_size), amplitudes[:num_plots, :].T, color='grey', alpha=0.1)
         plt.xlabel('Window Index')
         plt.ylabel('Amplitude')
         plt.title(f'Class {label}')

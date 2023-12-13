@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import scipy.io as sio
 import numpy as np
 
-from preprocessing import loadPredictionData, createDataFrame, normalizeMax, highPassFilter, lowPassFilter
+from preprocessing import createDataFrame, normalizeMax, bandPassFilter
 
 results_filepath = './results/D2.mat'
 data_filepath = './data/D2.mat'
@@ -25,12 +25,12 @@ df_norm = normalizeMax(df)
 
 # filter the data. Filtering can cause the amplitudes to decrease in
 # power so the data is normalized again.
-df_low_filtered = lowPassFilter(df_norm, low_cutoff_freq, sampling_freq)
+df_low_filtered = bandPassFilter(df_norm)
 # df_high_filtered = highPassFilter(df_low_filtered, high_cutoff_freq, sampling_freq)
 df_filtered = normalizeMax(df_low_filtered)
 
-start_idx = 40000
-num_samples = 10000
+start_idx = 0
+num_samples = 5000
 
 # get the times and amplitudes for the first num_samples starting at start_idx
 times = df_filtered['Time'][start_idx:num_samples + start_idx]

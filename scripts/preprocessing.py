@@ -6,7 +6,14 @@ import tensorflow as tf
 from scipy.signal import butter, lfilter
 from sklearn.decomposition import PCA
 
-def preprocessData(filepath, sampling_freq=25000, peak_window_radius=50, search_window_size=100, PCA=False):
+def preprocessData(
+        filepath,
+        sampling_freq=25000,
+        peak_window_radi=(30, 30),
+        search_window_size=100,
+        PCA=False,
+        peak_threshold=0
+    ):
     """
     Preprocess the data
 
@@ -36,8 +43,8 @@ def preprocessData(filepath, sampling_freq=25000, peak_window_radius=50, search_
     df_predi = normalizeMax(df_predi)
 
     # Split the data into windows
-    df_train = createWindows(df_train, peak_window_radius, search_window_size, peak_threshold=0)
-    df_predi = createWindows(df_predi, peak_window_radius, search_window_size, peak_threshold=0.05)
+    df_train = createWindows(df_train, peak_window_radi, search_window_size, peak_threshold=0)
+    df_predi = createWindows(df_predi, peak_window_radi, search_window_size, peak_threshold=peak_threshold)
 
     # Remove any duplicate windows from the data
     df_train = removeDuplicates(df_train)
@@ -48,14 +55,14 @@ def preprocessData(filepath, sampling_freq=25000, peak_window_radius=50, search_
     df_predi = normalizeMin(df_predi)
 
     # Remove any outliers from the data
-    df_train = removeOutliers(df_train, peak_window_radius, threshold=4)
+    df_train = removeOutliers(df_train, peak_window_radi, threshold=0.5)
  
     # Unbias the data
     df_train = unbiasData(df_train, bias_coefficients=[1, 1, 1, 1, 1, 1])
     # shuffle the dataframe
     df_train = df_train.sample(frac=1).reset_index(drop=True)
 
-    plotWindows(df_train, peak_window_radius, 'D1')
+    plotWindows(df_train, peak_window_radi, 'D1')
 
     if not PCA:
         return df_train, df_predi
@@ -227,7 +234,7 @@ def addNoise(df, noisePercentage):
 
     return df_noise
 
-def createWindows(df, peak_window_radius, search_window_size, peak_threshold=0.1):
+def createWindows(df, peak_window_radi, search_window_size, peak_threshold=0.1):
     """
     Create windows around the peaks in the data.
     
@@ -391,11 +398,11 @@ def createWindows(df, peak_window_radius, search_window_size, peak_threshold=0.1
     # by -window_size to window_size. This creates the windows around the
     # indicies
     df_windows = pd.concat([
-        df['Amplitude'].shift(i, fill_value=0) for i in range(peak_window_radius, -peak_window_radius, -1)
+        df['Amplitude'].shift(i, fill_value=0) for i in range(peak_window_radi[0], -peak_window_radi[1], -1)
     ], axis=1)
 
     # Rename the 'Amplitude' columns
-    df_windows.columns = [f'Amplitude{i}' for i in range(2 * peak_window_radius)]
+    df_windows.columns = [f'Amplitude{i}' for i in range(sum(peak_window_radi))]
 
     # To only get the windows around the peaks, we use the relative_peak_indicies
     # array to get the rows of the dataframe that contain the windows around the
@@ -461,7 +468,7 @@ def removeDuplicates(df_windows):
     df_noDuplicates = pd.concat([df_not_null, df_null])
     return df_noDuplicates
 
-def removeOutliers(df, peak_window_radius, threshold=1):
+def removeOutliers(df, peak_window_radi, threshold=1):
     """
     Remove the outliers from the dataframe
     
@@ -474,7 +481,7 @@ def removeOutliers(df, peak_window_radius, threshold=1):
     # Calculate the relative height of each window. This is the height of the
     # peak relative to the minimum value in the window.
     amplitude_names = df.filter(regex='Amplitude\d+').columns
-    peak_amplitude_name = amplitude_names[peak_window_radius]
+    peak_amplitude_name = amplitude_names[peak_window_radi[0]]
     df['Height'] = df[peak_amplitude_name] - df[amplitude_names].min(axis=1)
 
     groups = df.groupby('Label')
@@ -622,7 +629,7 @@ def getTrainAndTestData(df, train_size):
 
     return df_train, df_test
 
-def postProcessData(df, predictions, filepath, peak_window_radius):
+def postProcessData(df, predictions, filepath, peak_window_radi):
     """
     Post process the predictions
     
@@ -644,7 +651,7 @@ def postProcessData(df, predictions, filepath, peak_window_radius):
     df['Label'] = prediction_labels
 
     # plot the windows
-    plotWindows(df, peak_window_radius, 'Predictions')
+    plotWindows(df, peak_window_radi, 'Predictions')
 
     # Filter out the windows that are labelled as 0
     df = df[df['Label'] != 0]
@@ -731,7 +738,7 @@ def plotFrequencyDomain(df, sampling_freq=25000, num_samples_plot=5000, label='R
 
     plt.plot()
 
-def plotWindows(df, window_size, title):
+def plotWindows(df, window_radi, title):
     """
     Plot the windows around the peaks.
     
@@ -753,7 +760,7 @@ def plotWindows(df, window_size, title):
         amplitudes = group.filter(regex='Amplitude\d+').values
         plt.subplot(2, 3, i + 1)
         # plot the amplitudes as the color grey with an alpha of 0.5
-        plt.plot(np.arange(-window_size, window_size), amplitudes[:num_plots, :].T, color='grey', alpha=0.1)
+        plt.plot(np.arange(-window_radi[0], window_radi[1]), amplitudes[:num_plots, :].T, color='grey', alpha=0.1)
         plt.xlabel('Window Index')
         plt.ylabel('Amplitude')
         plt.title(f'Class {label}')

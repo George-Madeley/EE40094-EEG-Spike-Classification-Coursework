@@ -23,7 +23,7 @@ def main():
 
 def run(filepath):
     batch_size = 100
-    peak_window_radius = 30
+    peak_window_radi = (30, 30)
     search_window_size = 100
     epochs = 100
     sampling_freq = 25000
@@ -34,7 +34,7 @@ def run(filepath):
     df_train, df_predi = preprocessData(
         filepath,
         sampling_freq=sampling_freq,
-        peak_window_radius=peak_window_radius,
+        peak_window_radi=peak_window_radi,
         search_window_size=search_window_size,
         PCA=PCA,
     )
@@ -62,7 +62,7 @@ def run(filepath):
     
     filepath = os.path.join('results', f'{filename}')
 
-    postProcessData(df_predi, predictions, filepath)
+    postProcessData(df_predi, predictions, filepath, peak_window_radi)
 
 
 

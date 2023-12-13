@@ -12,7 +12,8 @@ def preprocessData(
         peak_window_radi=(30, 30),
         search_window_size=100,
         PCA=False,
-        peak_threshold=0
+        peak_threshold=0,
+        normalise_peak=False,
     ):
     """
     Preprocess the data
@@ -51,14 +52,14 @@ def preprocessData(
     df_predi = removeDuplicates(df_predi)
 
     # Normalise the windows so that the amplitudes are between 0 and 1
-    df_train = normalizeMin(df_train)
-    df_predi = normalizeMin(df_predi)
+    df_train = normalizeMin(df_train, normalise_peak)
+    df_predi = normalizeMin(df_predi, normalise_peak)
 
     # Remove any outliers from the data
     df_train = removeOutliers(df_train, peak_window_radi, threshold=0.5)
  
     # Unbias the data
-    df_train = unbiasData(df_train, bias_coefficients=[1, 1, 1, 1, 1, 1])
+    df_train = unbiasData(df_train, bias_coefficients=[5, 1, 1, 1, 1, 1])
     # shuffle the dataframe
     df_train = df_train.sample(frac=1).reset_index(drop=True)
 
@@ -178,11 +179,12 @@ def normalizeMax(df):
 
     return df
 
-def normalizeMin(df):
+def normalizeMin(df, normalise_peak):
     """
     Normalize the amplitudes so that they are between 0 and 1.
     
     :param df: dataframe
+    :param normalise_peak: normalise peak
     
     :return: dataframe
     """
@@ -195,7 +197,8 @@ def normalizeMin(df):
     amplitudes = amplitudes - amplitudes.min(axis=1).reshape(-1, 1)
 
     # Divide by the maximum of all the windows
-    amplitudes = amplitudes / amplitudes.max(axis=1).reshape(-1, 1)
+    if normalise_peak:
+        amplitudes = amplitudes / amplitudes.max(axis=1).reshape(-1, 1)
 
     df[amplitude_names] = amplitudes
 

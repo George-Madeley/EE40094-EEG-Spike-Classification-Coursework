@@ -10,7 +10,8 @@ def main():
     Main function
     """
     # Create a list of the data files to use for each dataset
-    peak_thresholds = [0.04, 0.06, 0.09, 0.18, 0.23]
+    peak_thresholds = [0.03, 0.06, 0.09, 0.18, 0.23]
+    normalise_peaks = [True, True, True, False, False]
     filepaths = [
         './data/D2.mat',
         './data/D3.mat',
@@ -20,10 +21,11 @@ def main():
     ]
     for i, filepath in enumerate(filepaths):
         peak_threshold = peak_thresholds[i]
-        run(filepath, peak_threshold)
+        normalise_peak = normalise_peaks[i]
+        run(filepath, peak_threshold, normalise_peak)
         print("\n\n")
 
-def run(filepath, peak_threshold):
+def run(filepath, peak_threshold, normalise_peak):
     batch_size = 100
     peak_window_radi = (30, 60)
     search_window_size = 100
@@ -39,7 +41,8 @@ def run(filepath, peak_threshold):
         peak_window_radi=peak_window_radi,
         search_window_size=search_window_size,
         PCA=PCA,
-        peak_threshold=peak_threshold
+        peak_threshold=peak_threshold,
+        normalise_peak=normalise_peak
     )
 
     # Get the number of possible outputs

@@ -163,3 +163,4 @@ cython_debug/
 *.pdf
 *.docx
 scripts/lewismusto.py
+scripts/patibertran.py

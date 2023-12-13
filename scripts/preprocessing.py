@@ -662,8 +662,13 @@ def postProcessData(df, predictions, filepath, peak_window_radi):
     # Filter out the windows that are labelled as 0
     df = df[df['Label'] != 0]
 
-    # Get the indicies of the predictions
-    prediction_indicies = df.index.values
+    # Get the relative peak indicies and the labels. We minus 25 from the
+    # relative peak indicies because the windows are created around the peak
+    # but the labels in D1 are at the start of the peak. Therefore, we need to
+    # subtract 25 from the relative peak indicies to get the index of the start
+    # of the peak. We chose 25 because on average, the label, in D1, is 25
+    # samples away from the peak.
+    prediction_indicies = df['RelativePeakIndex'].values - 25
     prediction_labels = df['Label'].values
 
     # Save the predictions

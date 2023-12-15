@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import numpy.typing as npt
 import scipy.io as sio
 import matplotlib.pyplot as plt
 import tensorflow as tf
@@ -122,7 +123,7 @@ def loadData(filepath: str) -> any:
     return d, index, label
 
 def createDataFrame(
-        d: np.ndarray,
+        d: npt.NDArray,
         index=None,
         label=None, 
         sampling_freq=25000
@@ -661,7 +662,7 @@ def unbiasData(
 
 def postProcessData(
         df: pd.DataFrame,
-        predictions: np.ndarray,
+        predictions: npt.NDArray,
         filepath: str
     ) -> None:
     """
@@ -705,8 +706,8 @@ def postProcessData(
 
 def savePredictions(
         filepath: str,
-        prediction_labels: np.ndarry,
-        prediction_indicies: np.ndarray
+        prediction_labels: npt.NDArray,
+        prediction_indicies: npt.NDArray
     ) -> None:
     """
     Save the predictions to the given filepath.

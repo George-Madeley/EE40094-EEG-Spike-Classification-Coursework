@@ -2,6 +2,9 @@ from models.kNearestNeighbor import KNearestNeighbor
 from dataProcessing import preprocessData, postProcessData
 import os
 
+
+
+
 def main():
     """
     Creates and trains a model to classify types of signals spikes in a series
@@ -42,7 +45,6 @@ def main():
         peak_threshold = peak_thresholds[i]
         normalise_peak = normalise_peaks[i]
         run(filepath, peak_threshold, normalise_peak)
-        print("\n\n")
 
 def run(filepath: str, peak_threshold: float, normalise_peak: bool) -> None:
     """
@@ -96,7 +98,7 @@ def run(filepath: str, peak_threshold: float, normalise_peak: bool) -> None:
     filepath = os.path.join('results', f'{filename}')
 
     # Postprocess the predictions and save them to a file
-    postProcessData(df_predi, predictions, filepath, peak_window_radi)
+    postProcessData(df_predi, predictions, filepath)
 
 
 # Run the main function when this file is run.

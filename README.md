@@ -38,7 +38,9 @@ To install the necessary packages and dependencies for running the program, we w
 
 ## Running the Program
 
-You can run the program by either calling `main.py` or using the launch configuration in `.vscode/launch.json`.
+You can run the program by either calling `main.py` or using the launch configuration in `.vscode/launch.json`. The code will run through each of the .mat files found in ./data.
+
+NOTE: All D1 to D6.mat files must be present for the code to run.
 
 ### Calling main.py
 

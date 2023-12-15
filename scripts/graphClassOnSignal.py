@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import scipy.io as sio
 import numpy as np
 
-from preprocessing import createDataFrame, normalizeMax, bandPassFilter
+from scripts.dataProcessing import createDataFrame, normalizeMax, bandPassFilter
 
 results_filepath = './results/D2.mat'
 data_filepath = './data/D2.mat'
